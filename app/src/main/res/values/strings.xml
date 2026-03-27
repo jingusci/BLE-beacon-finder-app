@@ -3,4 +3,9 @@
     <string name="app_name">BLE Beacon Finder</string>
     <string name="find_beacon">Buscar baliza mas cercana</string>
     <string name="initial_status">Presiona el boton para detectar la baliza conocida mas cercana.</string>
+    <string name="view_beacons">Ver balizas</string>
+    <string name="scanner_title">Balizas detectadas</string>
+    <string name="scanner_initial_status">Preparando monitoreo BLE...</string>
+    <string name="monitoring_empty">Todavia no se detectaron dispositivos BLE.</string>
+    <string name="back">Volver</string>
 </resources>

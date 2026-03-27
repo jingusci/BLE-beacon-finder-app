@@ -21,14 +21,12 @@ import android.widget.Toast
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.content.ContextCompat
-import java.nio.ByteBuffer
-import java.util.Locale
-import java.util.UUID
 
 class MainActivity : AppCompatActivity() {
 
     private lateinit var statusText: TextView
     private lateinit var actionButton: Button
+    private lateinit var viewBeaconsButton: Button
 
     private val mainHandler = Handler(Looper.getMainLooper())
     private val scanResults = linkedMapOf<String, BeaconCandidate>()
@@ -79,9 +77,14 @@ class MainActivity : AppCompatActivity() {
 
         statusText = findViewById(R.id.statusText)
         actionButton = findViewById(R.id.findBeaconButton)
+        viewBeaconsButton = findViewById(R.id.viewBeaconsButton)
 
         actionButton.setOnClickListener {
             ensureBluetoothAndPermissions()
+        }
+
+        viewBeaconsButton.setOnClickListener {
+            startActivity(Intent(this, BeaconScannerActivity::class.java))
         }
     }
 
@@ -114,7 +117,7 @@ class MainActivity : AppCompatActivity() {
             return
         }
 
-        if (Build.VERSION.SDK_INT <= Build.VERSION_CODES.R && !isLocationEnabled()) {
+        if (!isLocationEnabled()) {
             updateStatus("Activa la ubicacion del telefono para detectar balizas BLE.")
             startActivity(Intent(Settings.ACTION_LOCATION_SOURCE_SETTINGS))
             return
@@ -138,7 +141,7 @@ class MainActivity : AppCompatActivity() {
         isScanning = true
         updateStatus("Buscando balizas cercanas...")
 
-        scanner.startScan(scanCallback)
+        scanner.startScan(emptyList(), BeaconScanConfig.scanSettings(), scanCallback)
         mainHandler.postDelayed(
             {
                 finishNearestBeaconScan()
@@ -199,8 +202,8 @@ class MainActivity : AppCompatActivity() {
             return null
         }
 
-        val iBeacon = extractIBeacon(scanRecord) ?: return null
-        val knownBeacon = KNOWN_BEACONS.firstOrNull { it.uuid.equals(iBeacon.uuid, ignoreCase = true) }
+        val iBeacon = BeaconParser.extractIBeacon(scanRecord) ?: return null
+        val knownBeacon = BeaconCatalog.findKnownBeacon(iBeacon.uuid)
 
         return BeaconCandidate(
             name = knownBeacon?.name ?: "iBeacon desconocido (${safeDeviceName(deviceName)})",
@@ -210,43 +213,6 @@ class MainActivity : AppCompatActivity() {
             minor = iBeacon.minor,
             rssi = rssi
         )
-    }
-
-    private fun extractIBeacon(scanRecord: ScanRecord): IBeaconData? {
-        val manufacturerData = scanRecord.getManufacturerSpecificData(APPLE_COMPANY_ID) ?: return null
-        if (manufacturerData.size < IBEACON_TOTAL_LENGTH) {
-            return null
-        }
-
-        if (
-            manufacturerData[0].toInt() != IBEACON_TYPE_VALUE_0 ||
-            manufacturerData[1].toInt() != IBEACON_TYPE_VALUE_1
-        ) {
-            return null
-        }
-
-        val uuidBytes = manufacturerData.copyOfRange(
-            IBEACON_PREFIX_LENGTH,
-            IBEACON_PREFIX_LENGTH + UUID_BYTE_LENGTH
-        )
-        val uuidBuffer = ByteBuffer.wrap(uuidBytes)
-        val uuid = UUID(uuidBuffer.long, uuidBuffer.long)
-        val major = readUnsignedShort(manufacturerData, IBEACON_PREFIX_LENGTH + UUID_BYTE_LENGTH)
-        val minor = readUnsignedShort(manufacturerData, IBEACON_PREFIX_LENGTH + UUID_BYTE_LENGTH + 2)
-
-        return IBeaconData(
-            uuid = normalizeUuid(uuid.toString()),
-            major = major,
-            minor = minor
-        )
-    }
-
-    private fun normalizeUuid(uuid: String): String {
-        return uuid.lowercase(Locale.US)
-    }
-
-    private fun readUnsignedShort(data: ByteArray, offset: Int): Int {
-        return ((data[offset].toInt() and 0xFF) shl 8) or (data[offset + 1].toInt() and 0xFF)
     }
 
     private fun bluetoothLeScanner(): BluetoothLeScanner? {
@@ -262,7 +228,8 @@ class MainActivity : AppCompatActivity() {
         return if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
             listOf(
                 Manifest.permission.BLUETOOTH_SCAN,
-                Manifest.permission.BLUETOOTH_CONNECT
+                Manifest.permission.BLUETOOTH_CONNECT,
+                Manifest.permission.ACCESS_FINE_LOCATION
             )
         } else {
             listOf(Manifest.permission.ACCESS_FINE_LOCATION)
@@ -301,43 +268,7 @@ class MainActivity : AppCompatActivity() {
         val rssi: Int,
     )
 
-    data class BeaconDefinition(
-        val name: String,
-        val uuid: String,
-    )
-
-    data class IBeaconData(
-        val uuid: String,
-        val major: Int,
-        val minor: Int,
-    )
-
     companion object {
         private const val SCAN_DURATION_MS = 3_500L
-        private const val APPLE_COMPANY_ID = 0x004C
-        private const val IBEACON_PREFIX_LENGTH = 4
-        private const val UUID_BYTE_LENGTH = 16
-        private const val IBEACON_TOTAL_LENGTH = IBEACON_PREFIX_LENGTH + UUID_BYTE_LENGTH + 2 + 2 + 1
-        private const val IBEACON_TYPE_VALUE_0 = 0x02
-        private const val IBEACON_TYPE_VALUE_1 = 0x15
-
-        // Reemplaza estos UUID por los de tus balizas reales.
-        private val KNOWN_BEACONS =
-            listOf(
-                BeaconDefinition(
-                    name = "Baliza A - Cocina",
-                    uuid = "B9407F30-F5F8-466E-AFF9-25556B57FE6D",
-                ),
-                BeaconDefinition(
-                    name = "Baliza B - Pieza",
-                    uuid = "A1B2C3D4-E5F6-4789-ABCD-1234567890AB",
-                ),
-                BeaconDefinition(
-                    name = "Baliza C - Living",
-                    uuid = "9F8E7D6C-5B4A-4321-9876-ABCDEF123456",
-                ),
-            ).map { beacon ->
-                beacon.copy(uuid = beacon.uuid.lowercase(Locale.US))
-            }
     }
 }
