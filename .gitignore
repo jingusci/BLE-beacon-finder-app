@@ -1,0 +1,49 @@
+# Android / Gradle
+.gradle/
+build/
+app/build/
+local.properties
+
+# Gradle user home created inside the project
+.gradle-user-home/
+
+# IntelliJ / Android Studio
+.idea/
+*.iml
+
+# VS Code
+.vscode/
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Logs
+*.log
+
+# Kotlin / Java compiled files
+*.class
+
+# Signing / secrets
+*.jks
+*.keystore
+keystore.properties
+*.pem
+*.p12
+
+# Android captures
+captures/
+
+# Native / CMake
+.cxx/
+externalNativeBuild/
+
+# Generated files
+generated/
+
+# Test outputs
+test-results/
+
+# Misc
+*.tmp
+*.swp
