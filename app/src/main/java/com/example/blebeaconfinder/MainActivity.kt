@@ -326,15 +326,15 @@ class MainActivity : AppCompatActivity() {
             listOf(
                 BeaconDefinition(
                     name = "Baliza A - Cocina",
-                    uuid = "b9407f30-f5f8-466e-aff9-25556b57fe6d",
+                    uuid = "B9407F30-F5F8-466E-AFF9-25556B57FE6D",
                 ),
                 BeaconDefinition(
                     name = "Baliza B - Pieza",
-                    uuid = "22222222-2222-2222-2222-222222222222",
+                    uuid = "A1B2C3D4-E5F6-4789-ABCD-1234567890AB",
                 ),
                 BeaconDefinition(
                     name = "Baliza C - Living",
-                    uuid = "33333333-3333-3333-3333-333333333333",
+                    uuid = "9F8E7D6C-5B4A-4321-9876-ABCDEF123456",
                 ),
             ).map { beacon ->
                 beacon.copy(uuid = beacon.uuid.lowercase(Locale.US))
