@@ -15,6 +15,7 @@ import android.os.Bundle
 import android.os.Handler
 import android.os.Looper
 import android.provider.Settings
+import android.view.KeyEvent
 import android.widget.Button
 import android.widget.TextView
 import android.widget.Toast
@@ -80,7 +81,7 @@ class MainActivity : AppCompatActivity() {
         viewBeaconsButton = findViewById(R.id.viewBeaconsButton)
 
         actionButton.setOnClickListener {
-            ensureBluetoothAndPermissions()
+            triggerNearestBeaconSearch()
         }
 
         viewBeaconsButton.setOnClickListener {
@@ -88,9 +89,24 @@ class MainActivity : AppCompatActivity() {
         }
     }
 
+    override fun onKeyDown(keyCode: Int, event: KeyEvent?): Boolean {
+        return when (keyCode) {
+            KeyEvent.KEYCODE_VOLUME_UP,
+            KeyEvent.KEYCODE_VOLUME_DOWN -> {
+                triggerNearestBeaconSearch()
+                true
+            }
+            else -> super.onKeyDown(keyCode, event)
+        }
+    }
+
     override fun onDestroy() {
         stopScan()
         super.onDestroy()
+    }
+
+    private fun triggerNearestBeaconSearch() {
+        ensureBluetoothAndPermissions()
     }
 
     private fun ensureBluetoothAndPermissions() {
