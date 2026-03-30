@@ -40,6 +40,68 @@
         app:layout_constraintStart_toStartOf="parent"
         app:layout_constraintTop_toBottomOf="@id/backButton" />
 
+    <TextView
+        android:id="@+id/audioTestTitle"
+        android:layout_width="0dp"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="16dp"
+        android:text="@string/audio_test_title"
+        android:textAppearance="@style/TextAppearance.Material3.TitleMedium"
+        android:textColor="@color/text_color"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintTop_toBottomOf="@id/scannerStatusText" />
+
+    <com.google.android.material.button.MaterialButton
+        android:id="@+id/testCocinaButton"
+        style="@style/Widget.Material3.Button.OutlinedButton"
+        android:layout_width="0dp"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="8dp"
+        android:text="@string/audio_test_cocina"
+        android:textAllCaps="false"
+        app:layout_constraintEnd_toStartOf="@id/testPiezaButton"
+        app:layout_constraintHorizontal_chainStyle="spread"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintTop_toBottomOf="@id/audioTestTitle" />
+
+    <com.google.android.material.button.MaterialButton
+        android:id="@+id/testPiezaButton"
+        style="@style/Widget.Material3.Button.OutlinedButton"
+        android:layout_width="0dp"
+        android:layout_height="wrap_content"
+        android:layout_marginStart="8dp"
+        android:text="@string/audio_test_pieza"
+        android:textAllCaps="false"
+        app:layout_constraintBaseline_toBaselineOf="@id/testCocinaButton"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintStart_toEndOf="@id/testCocinaButton" />
+
+    <com.google.android.material.button.MaterialButton
+        android:id="@+id/testLivingButton"
+        style="@style/Widget.Material3.Button.OutlinedButton"
+        android:layout_width="0dp"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="8dp"
+        android:text="@string/audio_test_living"
+        android:textAllCaps="false"
+        app:layout_constraintEnd_toStartOf="@id/testNoBeaconButton"
+        app:layout_constraintHorizontal_chainStyle="spread"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintTop_toBottomOf="@id/testCocinaButton" />
+
+    <com.google.android.material.button.MaterialButton
+        android:id="@+id/testNoBeaconButton"
+        style="@style/Widget.Material3.Button.OutlinedButton"
+        android:layout_width="0dp"
+        android:layout_height="wrap_content"
+        android:layout_marginStart="8dp"
+        android:text="@string/audio_test_none"
+        android:textAllCaps="false"
+        app:layout_constraintBaseline_toBaselineOf="@id/testLivingButton"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintStart_toEndOf="@id/testLivingButton" />
+
     <ScrollView
         android:id="@+id/beaconScrollView"
         android:layout_width="0dp"
@@ -49,7 +111,7 @@
         app:layout_constraintBottom_toBottomOf="parent"
         app:layout_constraintEnd_toEndOf="parent"
         app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintTop_toBottomOf="@id/scannerStatusText">
+        app:layout_constraintTop_toBottomOf="@id/testLivingButton">
 
         <TextView
             android:id="@+id/beaconListText"

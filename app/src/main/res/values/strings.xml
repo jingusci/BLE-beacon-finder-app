@@ -8,4 +8,9 @@
     <string name="scanner_initial_status">Preparando monitoreo BLE...</string>
     <string name="monitoring_empty">Todavia no se detectaron dispositivos BLE.</string>
     <string name="back">Volver</string>
+    <string name="audio_test_title">Prueba de audio</string>
+    <string name="audio_test_cocina">Probar Cocina</string>
+    <string name="audio_test_pieza">Probar Pieza</string>
+    <string name="audio_test_living">Probar Living</string>
+    <string name="audio_test_none">Probar Sin balizas</string>
 </resources>

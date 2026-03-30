@@ -9,6 +9,7 @@ import java.util.UUID
 data class BeaconDefinition(
     val name: String,
     val uuid: String,
+    val audioResId: Int? = null,
 )
 
 data class IBeaconData(
@@ -18,19 +19,24 @@ data class IBeaconData(
 )
 
 object BeaconCatalog {
+    val NO_BEACON_AUDIO_RES_ID = R.raw.nobeacon
+
     val knownBeacons =
         listOf(
             BeaconDefinition(
                 name = "Baliza A - Cocina",
                 uuid = "B9407F30-F5F8-466E-AFF9-25556B57FE6D",
+                audioResId = R.raw.cocina,
             ),
             BeaconDefinition(
                 name = "Baliza B - Pieza",
                 uuid = "A1B2C3D4-E5F6-4789-ABCD-1234567890AB",
+                audioResId = R.raw.pieza,
             ),
             BeaconDefinition(
                 name = "Baliza C - Living",
                 uuid = "9F8E7D6C-5B4A-4321-9876-ABCDEF123456",
+                audioResId = R.raw.living,
             ),
         ).map { beacon ->
             beacon.copy(uuid = beacon.uuid.lowercase(Locale.US))
