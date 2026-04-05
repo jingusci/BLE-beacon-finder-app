@@ -75,6 +75,11 @@ set CLASSPATH=
 
 @rem Execute Gradle
 "%JAVA_EXE%" %DEFAULT_JVM_OPTS% %JAVA_OPTS% %GRADLE_OPTS% "-Dorg.gradle.appname=%APP_BASE_NAME%" -classpath "%CLASSPATH%" -jar "%APP_HOME%\gradle\wrapper\gradle-wrapper.jar" %*
+set EXIT_CODE=%ERRORLEVEL%
+
+if %EXIT_CODE% equ 0 call :postDebugApk %*
+if %EXIT_CODE% neq 0 exit /b %EXIT_CODE%
+goto end
 
 :end
 @rem End local scope for the variables with windows NT shell
@@ -90,5 +95,86 @@ exit /b %EXIT_CODE%
 
 :mainEnd
 if "%OS%"=="Windows_NT" endlocal
+goto :eof
 
 :omega
+
+:postDebugApk
+setlocal EnableDelayedExpansion
+set RUN_POST_BUILD=
+for %%A in (%*) do (
+    if /I "%%~A"=="assembleDebug" set RUN_POST_BUILD=1
+)
+
+if not defined RUN_POST_BUILD (
+    endlocal
+    goto :eof
+)
+
+set APK_PATH=%APP_HOME%\app\build\outputs\apk\debug\app-debug.apk
+if not exist "%APK_PATH%" (
+    endlocal
+    goto :eof
+)
+
+set VERSIONS_DIR=%APP_HOME%\versiones_apk
+if not exist "%VERSIONS_DIR%" mkdir "%VERSIONS_DIR%"
+
+set MAX_MAJOR=-1
+set MAX_MINOR=0
+set MAX_PATCH=0
+
+for /d %%D in ("%VERSIONS_DIR%\v*.*.*") do (
+    set CURRENT_NAME=%%~nxD
+    for /f "tokens=1-3 delims=v." %%a in ("!CURRENT_NAME!") do (
+        set CURRENT_MAJOR=%%a
+        set CURRENT_MINOR=%%b
+        set CURRENT_PATCH=%%c
+    )
+
+    if !CURRENT_MAJOR! GTR !MAX_MAJOR! (
+        set MAX_MAJOR=!CURRENT_MAJOR!
+        set MAX_MINOR=!CURRENT_MINOR!
+        set MAX_PATCH=!CURRENT_PATCH!
+    ) else if !CURRENT_MAJOR! EQU !MAX_MAJOR! (
+        if !CURRENT_MINOR! GTR !MAX_MINOR! (
+            set MAX_MINOR=!CURRENT_MINOR!
+            set MAX_PATCH=!CURRENT_PATCH!
+        ) else if !CURRENT_MINOR! EQU !MAX_MINOR! (
+            if !CURRENT_PATCH! GTR !MAX_PATCH! (
+                set MAX_PATCH=!CURRENT_PATCH!
+            )
+        )
+    )
+)
+
+if !MAX_MAJOR! LSS 0 (
+    set NEXT_VERSION=v0.1.0
+) else (
+    set /a NEXT_PATCH=MAX_PATCH+1
+    set NEXT_VERSION=v!MAX_MAJOR!.!MAX_MINOR!.!NEXT_PATCH!
+)
+
+set TARGET_DIR=%VERSIONS_DIR%\%NEXT_VERSION%
+if exist "%TARGET_DIR%" (
+    endlocal
+    goto :eof
+)
+
+mkdir "%TARGET_DIR%"
+copy /Y "%APK_PATH%" "%TARGET_DIR%\app-debug.apk" >NUL
+(
+    echo # %NEXT_VERSION%
+    echo.
+    echo ## Fecha de generacion
+    echo - %DATE% %TIME%
+    echo.
+    echo ## APK
+    echo - app-debug.apk
+    echo.
+    echo ## Cambios respecto a la version anterior
+    echo - Completar.
+) > "%TARGET_DIR%\README.md"
+echo APK debug copiado en "%TARGET_DIR%\app-debug.apk"
+endlocal
+goto :eof

@@ -4,6 +4,7 @@
     <string name="find_beacon">Buscar baliza mas cercana</string>
     <string name="initial_status">Presiona el boton para detectar la baliza conocida mas cercana.</string>
     <string name="view_beacons">Ver balizas</string>
+    <string name="manage_known_beacons">Gestionar conocidas</string>
     <string name="scanner_title">Balizas detectadas</string>
     <string name="scanner_initial_status">Preparando monitoreo BLE...</string>
     <string name="monitoring_empty">Todavia no se detectaron dispositivos BLE.</string>
@@ -13,4 +14,23 @@
     <string name="audio_test_pieza">Probar Pieza</string>
     <string name="audio_test_living">Probar Living</string>
     <string name="audio_test_none">Probar Sin balizas</string>
+    <string name="known_beacons_title">Balizas conocidas</string>
+    <string name="known_beacons_subtitle">Toca una baliza para editarla. Mantenela apretada para borrarla.</string>
+    <string name="known_beacons_empty">Todavia no cargaste balizas conocidas.</string>
+    <string name="add">Agregar</string>
+    <string name="add_known_beacon">Agregar baliza</string>
+    <string name="edit_known_beacon">Editar baliza</string>
+    <string name="known_beacon_name_hint">Nombre visible</string>
+    <string name="known_beacon_uuid_hint">UUID</string>
+    <string name="known_beacon_audio_hint">Audio asociado</string>
+    <string name="save">Guardar</string>
+    <string name="cancel">Cancelar</string>
+    <string name="delete">Borrar</string>
+    <string name="delete_known_beacon">Borrar baliza</string>
+    <string name="delete_known_beacon_message">Se va a borrar "%1$s" de la lista de balizas conocidas.</string>
+    <string name="known_beacon_saved">Baliza guardada.</string>
+    <string name="known_beacon_deleted">Baliza borrada.</string>
+    <string name="known_beacon_name_required">Ingresa un nombre para la baliza.</string>
+    <string name="known_beacon_uuid_invalid">Ingresa un UUID valido.</string>
+    <string name="known_beacon_uuid_duplicate">Ya existe una baliza con ese UUID.</string>
 </resources>

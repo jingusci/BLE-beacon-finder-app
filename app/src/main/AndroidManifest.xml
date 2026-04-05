@@ -18,6 +18,9 @@
         android:supportsRtl="true"
         android:theme="@style/Theme.BleBeaconFinder">
         <activity
+            android:name=".KnownBeaconsActivity"
+            android:exported="false" />
+        <activity
             android:name=".BeaconScannerActivity"
             android:exported="false" />
         <activity

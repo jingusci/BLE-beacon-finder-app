@@ -31,6 +31,7 @@ class MainActivity : AppCompatActivity() {
     private lateinit var statusText: TextView
     private lateinit var actionButton: Button
     private lateinit var viewBeaconsButton: Button
+    private lateinit var manageKnownBeaconsButton: Button
 
     private val mainHandler = Handler(Looper.getMainLooper())
     private val scanResults = linkedMapOf<String, BeaconCandidate>()
@@ -94,6 +95,7 @@ class MainActivity : AppCompatActivity() {
         statusText = findViewById(R.id.statusText)
         actionButton = findViewById(R.id.findBeaconButton)
         viewBeaconsButton = findViewById(R.id.viewBeaconsButton)
+        manageKnownBeaconsButton = findViewById(R.id.manageKnownBeaconsButton)
 
         actionButton.setOnClickListener {
             triggerNearestBeaconSearch()
@@ -102,6 +104,15 @@ class MainActivity : AppCompatActivity() {
         viewBeaconsButton.setOnClickListener {
             startActivity(Intent(this, BeaconScannerActivity::class.java))
         }
+
+        manageKnownBeaconsButton.setOnClickListener {
+            startActivity(Intent(this, KnownBeaconsActivity::class.java))
+        }
+    }
+
+    override fun onResume() {
+        super.onResume()
+        preloadAudioResources()
     }
 
     override fun onKeyDown(keyCode: Int, event: KeyEvent?): Boolean {
@@ -239,7 +250,7 @@ class MainActivity : AppCompatActivity() {
         }
 
         val iBeacon = BeaconParser.extractIBeacon(scanRecord) ?: return null
-        val knownBeacon = BeaconCatalog.findKnownBeacon(iBeacon.uuid)
+        val knownBeacon = BeaconCatalog.findKnownBeacon(this, iBeacon.uuid)
 
         return BeaconCandidate(
             name = knownBeacon?.name ?: "iBeacon desconocido (${safeDeviceName(deviceName)})",
@@ -329,11 +340,13 @@ class MainActivity : AppCompatActivity() {
         val audioResIds =
             buildList {
                 add(BeaconCatalog.NO_BEACON_AUDIO_RES_ID)
-                addAll(BeaconCatalog.knownBeacons.mapNotNull { it.audioResId })
+                addAll(BeaconCatalog.getKnownBeacons(this@MainActivity).mapNotNull { it.audioResId })
             }.distinct()
 
         audioResIds.forEach { audioResId ->
-            soundIdsByResId[audioResId] = soundPool.load(this, audioResId, 1)
+            if (soundIdsByResId.containsKey(audioResId).not()) {
+                soundIdsByResId[audioResId] = soundPool.load(this, audioResId, 1)
+            }
         }
     }
 

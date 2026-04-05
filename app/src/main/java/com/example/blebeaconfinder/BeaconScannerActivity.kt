@@ -218,7 +218,7 @@ class BeaconScannerActivity : AppCompatActivity() {
         val address = device.address ?: return
         val scanRecord = result.scanRecord
         val iBeacon = scanRecord?.let(BeaconParser::extractIBeacon)
-        val knownBeacon = iBeacon?.uuid?.let(BeaconCatalog::findKnownBeacon)
+        val knownBeacon = iBeacon?.uuid?.let { BeaconCatalog.findKnownBeacon(this, it) }
         val manufacturerIds = scanRecord?.manufacturerSpecificData?.collectManufacturerIds().orEmpty()
         val serviceUuids = scanRecord?.serviceUuids?.map { it.uuid.toString() }.orEmpty()
 
@@ -372,11 +372,13 @@ class BeaconScannerActivity : AppCompatActivity() {
         val audioResIds =
             buildList {
                 add(BeaconCatalog.NO_BEACON_AUDIO_RES_ID)
-                addAll(BeaconCatalog.knownBeacons.mapNotNull { it.audioResId })
+                addAll(BeaconCatalog.getKnownBeacons(this@BeaconScannerActivity).mapNotNull { it.audioResId })
             }.distinct()
 
         audioResIds.forEach { audioResId ->
-            soundIdsByResId[audioResId] = soundPool.load(this, audioResId, 1)
+            if (soundIdsByResId.containsKey(audioResId).not()) {
+                soundIdsByResId[audioResId] = soundPool.load(this, audioResId, 1)
+            }
         }
     }
 

@@ -14,19 +14,36 @@
         android:text="@string/app_name"
         android:textAppearance="@style/TextAppearance.Material3.TitleLarge"
         android:textColor="@color/text_color"
-        app:layout_constraintEnd_toStartOf="@id/viewBeaconsButton"
+        app:layout_constraintEnd_toStartOf="@id/topButtonsContainer"
         app:layout_constraintStart_toStartOf="parent"
         app:layout_constraintTop_toTopOf="parent" />
 
-    <com.google.android.material.button.MaterialButton
-        android:id="@+id/viewBeaconsButton"
-        style="@style/Widget.Material3.Button.OutlinedButton"
+    <LinearLayout
+        android:id="@+id/topButtonsContainer"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
-        android:text="@string/view_beacons"
-        android:textAllCaps="false"
+        android:gravity="end"
+        android:orientation="vertical"
         app:layout_constraintEnd_toEndOf="parent"
-        app:layout_constraintTop_toTopOf="parent" />
+        app:layout_constraintTop_toTopOf="parent">
+
+        <com.google.android.material.button.MaterialButton
+            android:id="@+id/viewBeaconsButton"
+            style="@style/Widget.Material3.Button.OutlinedButton"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="@string/view_beacons"
+            android:textAllCaps="false" />
+
+        <com.google.android.material.button.MaterialButton
+            android:id="@+id/manageKnownBeaconsButton"
+            style="@style/Widget.Material3.Button.OutlinedButton"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="8dp"
+            android:text="@string/manage_known_beacons"
+            android:textAllCaps="false" />
+    </LinearLayout>
 
     <TextView
         android:id="@+id/statusText"
