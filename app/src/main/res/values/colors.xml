@@ -3,4 +3,8 @@
     <color name="button_color">#0F766E</color>
     <color name="background_color">#F4F7F5</color>
     <color name="text_color">#16302B</color>
+    <color name="surface_color">#FFFFFF</color>
+    <color name="secondary_text_color">#57716C</color>
+    <color name="card_stroke_color">#C8D8D3</color>
+    <color name="chip_background_color">#DDF3EE</color>
 </resources>

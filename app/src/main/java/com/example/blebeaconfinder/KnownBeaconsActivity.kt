@@ -2,12 +2,15 @@ package com.example.blebeaconfinder
 
 import android.os.Bundle
 import android.view.View
+import android.view.ViewGroup
 import android.widget.ArrayAdapter
+import android.widget.BaseAdapter
 import android.widget.ListView
 import android.widget.TextView
 import android.widget.Toast
 import androidx.appcompat.app.AlertDialog
 import androidx.appcompat.app.AppCompatActivity
+import com.google.android.material.card.MaterialCardView
 import com.google.android.material.button.MaterialButton
 import com.google.android.material.textfield.MaterialAutoCompleteTextView
 import com.google.android.material.textfield.TextInputEditText
@@ -55,22 +58,7 @@ class KnownBeaconsActivity : AppCompatActivity() {
 
         emptyText.visibility = if (knownBeacons.isEmpty()) View.VISIBLE else View.GONE
         beaconListView.visibility = if (knownBeacons.isEmpty()) View.GONE else View.VISIBLE
-
-        val rows =
-            knownBeacons.map { beacon ->
-                buildString {
-                    append(beacon.name)
-                    append("\nUUID: ${beacon.uuid}")
-                    append("\nAudio: ${BeaconCatalog.audioLabelFor(beacon.audioResId)}")
-                }
-            }
-
-        beaconListView.adapter =
-            ArrayAdapter(
-                this,
-                android.R.layout.simple_list_item_1,
-                rows
-            )
+        beaconListView.adapter = KnownBeaconsAdapter()
     }
 
     private fun showBeaconEditor(existingBeacon: BeaconDefinition?) {
@@ -98,10 +86,21 @@ class KnownBeaconsActivity : AppCompatActivity() {
                 .setTitle(if (existingBeacon == null) R.string.add_known_beacon else R.string.edit_known_beacon)
                 .setView(dialogView)
                 .setNegativeButton(R.string.cancel, null)
+                .setNeutralButton(R.string.delete, null)
                 .setPositiveButton(R.string.save, null)
                 .create()
 
         dialog.setOnShowListener {
+            dialog.getButton(AlertDialog.BUTTON_NEUTRAL).apply {
+                visibility = if (existingBeacon == null) View.GONE else View.VISIBLE
+                setOnClickListener {
+                    existingBeacon?.let { beacon ->
+                        dialog.dismiss()
+                        confirmDelete(beacon)
+                    }
+                }
+            }
+
             dialog.getButton(AlertDialog.BUTTON_POSITIVE).setOnClickListener {
                 val name = nameInput.text?.toString()?.trim().orEmpty()
                 val rawUuid = uuidInput.text?.toString()?.trim().orEmpty()
@@ -178,5 +177,30 @@ class KnownBeaconsActivity : AppCompatActivity() {
                 Toast.makeText(this, R.string.known_beacon_deleted, Toast.LENGTH_SHORT).show()
             }
             .show()
+    }
+
+    private inner class KnownBeaconsAdapter : BaseAdapter() {
+        override fun getCount(): Int = knownBeacons.size
+
+        override fun getItem(position: Int): BeaconDefinition = knownBeacons[position]
+
+        override fun getItemId(position: Int): Long = getItem(position).uuid.hashCode().toLong()
+
+        override fun getView(position: Int, convertView: View?, parent: ViewGroup): View {
+            val rowView = convertView ?: layoutInflater.inflate(R.layout.item_known_beacon, parent, false)
+            val beacon = getItem(position)
+
+            rowView.findViewById<TextView>(R.id.beaconNameText).text = beacon.name
+            rowView.findViewById<TextView>(R.id.beaconUuidText).text = beacon.uuid
+            rowView.findViewById<TextView>(R.id.beaconAudioValueText).text =
+                BeaconCatalog.audioLabelFor(beacon.audioResId)
+            rowView.findViewById<TextView>(R.id.beaconActionHintText).text =
+                getString(R.string.known_beacon_item_hint)
+
+            rowView.findViewById<MaterialCardView>(R.id.knownBeaconCard).strokeWidth =
+                resources.getDimensionPixelSize(R.dimen.known_beacon_card_stroke)
+
+            return rowView
+        }
     }
 }

@@ -4,15 +4,22 @@
     android:layout_width="match_parent"
     android:layout_height="match_parent"
     android:background="@color/background_color"
-    android:padding="20dp">
+    android:paddingHorizontal="20dp"
+    android:paddingTop="24dp"
+    android:paddingBottom="12dp">
 
     <com.google.android.material.button.MaterialButton
         android:id="@+id/backKnownBeaconsButton"
         style="@style/Widget.Material3.Button.OutlinedButton"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
+        android:insetTop="0dp"
+        android:insetBottom="0dp"
         android:text="@string/back"
         android:textAllCaps="false"
+        app:cornerRadius="18dp"
+        app:strokeColor="@color/card_stroke_color"
+        android:textColor="@color/text_color"
         app:layout_constraintStart_toStartOf="parent"
         app:layout_constraintTop_toTopOf="parent" />
 
@@ -22,7 +29,7 @@
         android:layout_height="wrap_content"
         android:layout_marginStart="12dp"
         android:text="@string/known_beacons_title"
-        android:textAppearance="@style/TextAppearance.Material3.TitleLarge"
+        android:textAppearance="@style/TextAppearance.Material3.HeadlineMedium"
         android:textColor="@color/text_color"
         app:layout_constraintEnd_toStartOf="@id/addBeaconButton"
         app:layout_constraintStart_toEndOf="@id/backKnownBeaconsButton"
@@ -34,23 +41,52 @@
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
         android:backgroundTint="@color/button_color"
+        android:insetTop="0dp"
+        android:insetBottom="0dp"
         android:text="@string/add"
         android:textAllCaps="false"
         android:textColor="@android:color/white"
+        app:cornerRadius="18dp"
         app:layout_constraintEnd_toEndOf="parent"
         app:layout_constraintTop_toTopOf="parent" />
 
-    <TextView
-        android:id="@+id/knownBeaconsSubtitle"
+    <com.google.android.material.card.MaterialCardView
+        android:id="@+id/knownBeaconsHeaderCard"
         android:layout_width="0dp"
         android:layout_height="wrap_content"
-        android:layout_marginTop="16dp"
-        android:text="@string/known_beacons_subtitle"
-        android:textAppearance="@style/TextAppearance.Material3.BodyMedium"
-        android:textColor="@color/text_color"
+        android:layout_marginTop="20dp"
+        app:cardBackgroundColor="@color/surface_color"
+        app:cardCornerRadius="28dp"
+        app:cardElevation="0dp"
+        app:strokeColor="@color/card_stroke_color"
         app:layout_constraintEnd_toEndOf="parent"
         app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintTop_toBottomOf="@id/backKnownBeaconsButton" />
+        app:layout_constraintTop_toBottomOf="@id/backKnownBeaconsButton">
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="vertical"
+            android:padding="20dp">
+
+            <TextView
+                android:id="@+id/knownBeaconsSubtitle"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:text="@string/known_beacons_subtitle"
+                android:textAppearance="@style/TextAppearance.Material3.BodyLarge"
+                android:textColor="@color/text_color" />
+
+            <TextView
+                android:id="@+id/knownBeaconsHelpText"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="10dp"
+                android:text="@string/known_beacons_help"
+                android:textAppearance="@style/TextAppearance.Material3.BodyMedium"
+                android:textColor="@color/secondary_text_color" />
+        </LinearLayout>
+    </com.google.android.material.card.MaterialCardView>
 
     <TextView
         android:id="@+id/emptyKnownBeaconsText"
@@ -60,21 +96,24 @@
         android:gravity="center"
         android:text="@string/known_beacons_empty"
         android:textAppearance="@style/TextAppearance.Material3.BodyLarge"
-        android:textColor="@color/text_color"
+        android:textColor="@color/secondary_text_color"
         app:layout_constraintEnd_toEndOf="parent"
         app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintTop_toBottomOf="@id/knownBeaconsSubtitle" />
+        app:layout_constraintTop_toBottomOf="@id/knownBeaconsHeaderCard" />
 
     <ListView
         android:id="@+id/knownBeaconsListView"
         android:layout_width="0dp"
         android:layout_height="0dp"
         android:layout_marginTop="16dp"
+        android:clipToPadding="false"
+        android:listSelector="@android:color/transparent"
+        android:paddingBottom="16dp"
         android:divider="@android:color/transparent"
-        android:dividerHeight="12dp"
+        android:dividerHeight="10dp"
         app:layout_constraintBottom_toBottomOf="parent"
         app:layout_constraintEnd_toEndOf="parent"
         app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintTop_toBottomOf="@id/knownBeaconsSubtitle" />
+        app:layout_constraintTop_toBottomOf="@id/knownBeaconsHeaderCard" />
 
 </androidx.constraintlayout.widget.ConstraintLayout>
