@@ -230,7 +230,7 @@ class MainActivity : AppCompatActivity() {
     private fun registerCandidate(result: ScanResult) {
         val device = result.device
         val address = device.address ?: return
-        val beacon = buildBeaconCandidate(result.scanRecord, address, result.rssi, device.name) ?: return
+        val beacon = buildBeaconCandidate(result.scanRecord, address, result.rssi) ?: return
         val candidateKey = "${beacon.uuid}:${beacon.major ?: -1}:${beacon.minor ?: -1}"
         val existing = scanResults[candidateKey]
 
@@ -242,24 +242,23 @@ class MainActivity : AppCompatActivity() {
     private fun buildBeaconCandidate(
         scanRecord: ScanRecord?,
         address: String,
-        rssi: Int,
-        deviceName: String?
+        rssi: Int
     ): BeaconCandidate? {
         if (scanRecord == null) {
             return null
         }
 
         val iBeacon = BeaconParser.extractIBeacon(scanRecord) ?: return null
-        val knownBeacon = BeaconCatalog.findKnownBeacon(this, iBeacon.uuid)
+        val knownBeacon = BeaconCatalog.findKnownBeacon(this, iBeacon.uuid) ?: return null
 
         return BeaconCandidate(
-            name = knownBeacon?.name ?: "iBeacon desconocido (${safeDeviceName(deviceName)})",
+            name = knownBeacon.name,
             address = address,
             uuid = iBeacon.uuid,
             major = iBeacon.major,
             minor = iBeacon.minor,
             rssi = rssi,
-            audioResId = knownBeacon?.audioResId,
+            audioResId = knownBeacon.audioResId,
         )
     }
 
@@ -296,10 +295,6 @@ class MainActivity : AppCompatActivity() {
             Settings.Secure.LOCATION_MODE_OFF
         )
         return locationMode != Settings.Secure.LOCATION_MODE_OFF
-    }
-
-    private fun safeDeviceName(name: String?): String {
-        return name?.takeIf { it.isNotBlank() } ?: "Sin nombre"
     }
 
     private fun updateStatus(message: String) {
