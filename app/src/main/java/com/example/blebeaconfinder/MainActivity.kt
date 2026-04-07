@@ -34,7 +34,7 @@ class MainActivity : AppCompatActivity() {
     private lateinit var manageKnownBeaconsButton: Button
 
     private val mainHandler = Handler(Looper.getMainLooper())
-    private val scanResults = linkedMapOf<String, BeaconCandidate>()
+    private val scanMeasurements = linkedMapOf<String, BeaconMeasurement>()
     private var isScanning = false
     private lateinit var soundPool: SoundPool
     private val loadedAudioResIds = mutableSetOf<Int>()
@@ -180,7 +180,7 @@ class MainActivity : AppCompatActivity() {
             return
         }
 
-        scanResults.clear()
+        scanMeasurements.clear()
         isScanning = true
         updateStatus("Buscando balizas cercanas...")
 
@@ -196,12 +196,15 @@ class MainActivity : AppCompatActivity() {
     private fun finishNearestBeaconScan() {
         stopScan()
 
-        val nearestBeacon = scanResults.values.maxByOrNull { it.rssi }
-        if (nearestBeacon == null) {
+        val nearestMeasurement = scanMeasurements.values.maxByOrNull { it.averageRssi }
+        if (nearestMeasurement == null) {
             updateStatus("No se detectaron balizas iBeacon.")
             playAudioResource(BeaconCatalog.NO_BEACON_AUDIO_RES_ID, "sin balizas conocidas")
             return
         }
+
+        val nearestBeacon = nearestMeasurement.beacon
+        val averageRssi = nearestMeasurement.averageRssi
 
         updateStatus(
             buildString {
@@ -209,7 +212,8 @@ class MainActivity : AppCompatActivity() {
                 append("\nUUID: ${nearestBeacon.uuid}")
                 nearestBeacon.major?.let { append("\nMajor: $it") }
                 nearestBeacon.minor?.let { append("\nMinor: $it") }
-                append("\nRSSI: ${nearestBeacon.rssi} dBm")
+                append("\nRSSI promedio: ${averageRssi} dBm")
+                append("\nMuestras: ${nearestMeasurement.sampleCount}")
             }
         )
         nearestBeacon.audioResId?.let { audioResId ->
@@ -232,11 +236,22 @@ class MainActivity : AppCompatActivity() {
         val address = device.address ?: return
         val beacon = buildBeaconCandidate(result.scanRecord, address, result.rssi) ?: return
         val candidateKey = "${beacon.uuid}:${beacon.major ?: -1}:${beacon.minor ?: -1}"
-        val existing = scanResults[candidateKey]
+        val existing = scanMeasurements[candidateKey]
 
-        if (existing == null || result.rssi > existing.rssi) {
-            scanResults[candidateKey] = beacon
+        if (existing == null) {
+            scanMeasurements[candidateKey] = BeaconMeasurement(beacon = beacon, totalRssi = beacon.rssi.toLong(), sampleCount = 1)
+            return
         }
+
+        scanMeasurements[candidateKey] =
+            existing.copy(
+                beacon = existing.beacon.copy(
+                    address = address,
+                    rssi = beacon.rssi
+                ),
+                totalRssi = existing.totalRssi + beacon.rssi,
+                sampleCount = existing.sampleCount + 1
+            )
     }
 
     private fun buildBeaconCandidate(
@@ -396,7 +411,16 @@ class MainActivity : AppCompatActivity() {
         val audioResId: Int?,
     )
 
+    data class BeaconMeasurement(
+        val beacon: BeaconCandidate,
+        val totalRssi: Long,
+        val sampleCount: Int,
+    ) {
+        val averageRssi: Int
+            get() = (totalRssi.toDouble() / sampleCount).toInt()
+    }
+
     companion object {
-        private const val SCAN_DURATION_MS = 3_500L
+        private const val SCAN_DURATION_MS = 3_000L
     }
 }
