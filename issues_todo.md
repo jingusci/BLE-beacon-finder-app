@@ -1,0 +1,8 @@
+- Si bluetooth no está activado, la app falla y se cierra sin avisar
+  - solo paso una vez
+- Cuando se abre la pantalla de Ver balizas, reproduce un audio al entrar
+- Que la ventana de ver balizas solo muestre las balizas BLE con nuestro protocolo (era ibeacon?), y descarte todas las demas cosas bluetooth
+- que nos permita tocarlas y agregarlas a las conocidas
+- Agregar boton de restablecer en la ventana de gestion de balizas, para que vuelva a las originales compiladas en la app por defecto
+- Agregar un boton para habilitar/deshabilitar los escaneos usando los botones de volumen
+- 
