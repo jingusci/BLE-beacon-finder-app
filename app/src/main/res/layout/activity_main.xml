@@ -49,16 +49,26 @@
         android:id="@+id/statusText"
         android:layout_width="0dp"
         android:layout_height="wrap_content"
+        android:layout_marginTop="20dp"
         android:gravity="center"
         android:text="@string/initial_status"
         android:textColor="@color/text_color"
         android:textAppearance="@style/TextAppearance.Material3.BodyLarge"
-        app:layout_constraintBottom_toTopOf="@id/findBeaconButton"
         app:layout_constraintEnd_toEndOf="parent"
         app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintTop_toBottomOf="@id/screenTitle"
-        app:layout_constraintVertical_bias="0.45"
-        app:layout_constraintVertical_chainStyle="packed" />
+        app:layout_constraintTop_toBottomOf="@id/volumeButtonsSwitch" />
+
+    <com.google.android.material.materialswitch.MaterialSwitch
+        android:id="@+id/volumeButtonsSwitch"
+        android:layout_width="0dp"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="16dp"
+        android:text="@string/volume_buttons_switch"
+        android:textAppearance="@style/TextAppearance.Material3.BodyMedium"
+        android:textColor="@color/text_color"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintTop_toBottomOf="@id/screenTitle" />
 
     <com.google.android.material.button.MaterialButton
         android:id="@+id/findBeaconButton"
@@ -73,6 +83,7 @@
         app:layout_constraintBottom_toBottomOf="parent"
         app:layout_constraintEnd_toEndOf="parent"
         app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintTop_toBottomOf="@id/statusText" />
+        app:layout_constraintTop_toBottomOf="@id/statusText"
+        app:layout_constraintVertical_bias="0.8" />
 
 </androidx.constraintlayout.widget.ConstraintLayout>

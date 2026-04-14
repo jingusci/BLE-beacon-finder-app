@@ -102,26 +102,16 @@
         app:layout_constraintEnd_toEndOf="parent"
         app:layout_constraintStart_toEndOf="@id/testLivingButton" />
 
-    <ScrollView
-        android:id="@+id/beaconScrollView"
+    <ListView
+        android:id="@+id/beaconListView"
         android:layout_width="0dp"
         android:layout_height="0dp"
         android:layout_marginTop="16dp"
-        android:fillViewport="true"
+        android:divider="@android:color/transparent"
+        android:dividerHeight="12dp"
         app:layout_constraintBottom_toBottomOf="parent"
         app:layout_constraintEnd_toEndOf="parent"
         app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintTop_toBottomOf="@id/testLivingButton">
-
-        <TextView
-            android:id="@+id/beaconListText"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:background="@android:color/white"
-            android:padding="16dp"
-            android:text="@string/monitoring_empty"
-            android:textAppearance="@style/TextAppearance.Material3.BodyMedium"
-            android:textColor="@color/text_color" />
-    </ScrollView>
+        app:layout_constraintTop_toBottomOf="@id/testLivingButton" />
 
 </androidx.constraintlayout.widget.ConstraintLayout>

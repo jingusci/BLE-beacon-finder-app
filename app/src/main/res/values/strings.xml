@@ -3,11 +3,12 @@
     <string name="app_name">BLE Beacon Finder</string>
     <string name="find_beacon">Buscar baliza mas cercana</string>
     <string name="initial_status">Presiona el boton para detectar la baliza conocida mas cercana.</string>
+    <string name="volume_buttons_switch">Usar botones de volumen para iniciar busqueda</string>
     <string name="view_beacons">Ver balizas</string>
     <string name="manage_known_beacons">Gestionar conocidas</string>
     <string name="scanner_title">Balizas detectadas</string>
     <string name="scanner_initial_status">Preparando monitoreo BLE...</string>
-    <string name="monitoring_empty">Todavia no se detectaron dispositivos BLE.</string>
+    <string name="monitoring_empty">Todavia no se detectaron balizas iBeacon.</string>
     <string name="back">Volver</string>
     <string name="audio_test_title">Prueba de audio</string>
     <string name="audio_test_cocina">Probar Cocina</string>
@@ -38,4 +39,13 @@
     <string name="known_beacon_name_required">Ingresa un nombre para la baliza.</string>
     <string name="known_beacon_uuid_invalid">Ingresa un UUID valido.</string>
     <string name="known_beacon_uuid_duplicate">Ya existe una baliza con ese UUID.</string>
+    <string name="scanner_status_monitoring">Monitoreando balizas iBeacon. Toca una para agregarla o editarla.</string>
+    <string name="observed_beacon_known">Baliza conocida</string>
+    <string name="observed_beacon_unknown">Baliza detectada</string>
+    <string name="observed_beacon_action_add">Toca para agregarla a conocidas.</string>
+    <string name="observed_beacon_action_edit">Toca para editar su configuracion conocida.</string>
+    <string name="observed_beacon_name_fallback">iBeacon sin nombre</string>
+    <string name="observed_beacon_saved">Baliza detectada guardada en conocidas.</string>
+    <string name="observed_beacon_uuid_line">UUID: %1$s</string>
+    <string name="observed_beacon_details">Major: %1$d | Minor: %2$d | RSSI: %3$d dBm | Hace %4$.1f s</string>
 </resources>

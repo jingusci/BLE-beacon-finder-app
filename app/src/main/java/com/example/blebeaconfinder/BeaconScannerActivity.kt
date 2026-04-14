@@ -18,18 +18,27 @@ import android.os.Bundle
 import android.os.Handler
 import android.os.Looper
 import android.provider.Settings
+import android.view.View
+import android.view.ViewGroup
+import android.widget.ArrayAdapter
+import android.widget.BaseAdapter
 import android.widget.Button
+import android.widget.ListView
 import android.widget.TextView
 import android.widget.Toast
+import androidx.appcompat.app.AlertDialog
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.content.ContextCompat
+import com.google.android.material.card.MaterialCardView
+import com.google.android.material.textfield.MaterialAutoCompleteTextView
+import com.google.android.material.textfield.TextInputEditText
 import java.util.Locale
 
 class BeaconScannerActivity : AppCompatActivity() {
 
     private lateinit var statusText: TextView
-    private lateinit var beaconListText: TextView
+    private lateinit var beaconListView: ListView
     private lateinit var backButton: Button
     private lateinit var testCocinaButton: Button
     private lateinit var testPiezaButton: Button
@@ -38,8 +47,6 @@ class BeaconScannerActivity : AppCompatActivity() {
 
     private val mainHandler = Handler(Looper.getMainLooper())
     private val observedDevices = linkedMapOf<String, ObservedDevice>()
-    private val announcedBeacons = mutableSetOf<String>()
-    private var announcedNoBeacon = false
     private var isScanning = false
     private lateinit var soundPool: SoundPool
     private val loadedAudioResIds = mutableSetOf<Int>()
@@ -109,7 +116,7 @@ class BeaconScannerActivity : AppCompatActivity() {
         initializeSoundPool()
 
         statusText = findViewById(R.id.scannerStatusText)
-        beaconListText = findViewById(R.id.beaconListText)
+        beaconListView = findViewById(R.id.beaconListView)
         backButton = findViewById(R.id.backButton)
         testCocinaButton = findViewById(R.id.testCocinaButton)
         testPiezaButton = findViewById(R.id.testPiezaButton)
@@ -130,6 +137,12 @@ class BeaconScannerActivity : AppCompatActivity() {
         }
         testNoBeaconButton.setOnClickListener {
             playAudioResource(R.raw.nobeacon, "sin balizas conocidas")
+        }
+        beaconListView.setOnItemClickListener { _, _, position, _ ->
+            observedDevices.values
+                .sortedWith(compareByDescending<ObservedDevice> { it.rssi }.thenBy { it.displayName.lowercase(Locale.US) })
+                .getOrNull(position)
+                ?.let(::showObservedBeaconEditor)
         }
     }
 
@@ -193,12 +206,9 @@ class BeaconScannerActivity : AppCompatActivity() {
         }
 
         observedDevices.clear()
-        announcedBeacons.clear()
-        announcedNoBeacon = false
-        beaconListText.text = getString(R.string.monitoring_empty)
-        setMediaVolumeToMax()
+        beaconListView.adapter = ObservedBeaconsAdapter(emptyList())
         isScanning = true
-        updateStatus("Monitoreando dispositivos BLE. Actualiza cada 1 segundo.")
+        updateStatus(getString(R.string.scanner_status_monitoring))
         scanner.startScan(emptyList(), BeaconScanConfig.scanSettings(), scanCallback)
         mainHandler.post(renderRunnable)
     }
@@ -217,27 +227,19 @@ class BeaconScannerActivity : AppCompatActivity() {
         val device = result.device
         val address = device.address ?: return
         val scanRecord = result.scanRecord
-        val iBeacon = scanRecord?.let(BeaconParser::extractIBeacon)
-        val knownBeacon = iBeacon?.uuid?.let { BeaconCatalog.findKnownBeacon(this, it) }
-        val manufacturerIds = scanRecord?.manufacturerSpecificData?.collectManufacturerIds().orEmpty()
-        val serviceUuids = scanRecord?.serviceUuids?.map { it.uuid.toString() }.orEmpty()
+        val iBeacon = scanRecord?.let(BeaconParser::extractIBeacon) ?: return
+        val knownBeacon = BeaconCatalog.findKnownBeacon(this, iBeacon.uuid)
 
         observedDevices[address] =
             ObservedDevice(
                 address = address,
-                name = device.name?.takeIf { it.isNotBlank() } ?: "Sin nombre",
+                name = device.name?.takeIf { it.isNotBlank() } ?: getString(R.string.observed_beacon_name_fallback),
                 rssi = result.rssi,
                 lastSeenAt = System.currentTimeMillis(),
                 beaconName = knownBeacon?.name,
                 beaconUuid = knownBeacon?.uuid,
                 iBeacon = iBeacon,
-                manufacturerIds = manufacturerIds,
-                serviceUuids = serviceUuids
             )
-
-        if (knownBeacon != null && announcedBeacons.add(knownBeacon.uuid)) {
-            announceBeacon(knownBeacon)
-        }
     }
 
     private fun pruneOldDevices() {
@@ -249,54 +251,18 @@ class BeaconScannerActivity : AppCompatActivity() {
                 iterator.remove()
             }
         }
-
-        val activeBeaconUuids = observedDevices.values.mapNotNull { it.beaconUuid }.toSet()
-        announcedBeacons.retainAll(activeBeaconUuids)
     }
 
     private fun renderObservedDevices() {
-        val knownBeaconDetected = observedDevices.values.any { it.beaconUuid != null }
-        if (!knownBeaconDetected) {
-            announceNoBeaconIfNeeded()
-        } else {
-            announcedNoBeacon = false
-        }
-
         if (observedDevices.isEmpty()) {
-            beaconListText.text = getString(R.string.monitoring_empty)
+            beaconListView.adapter = ObservedBeaconsAdapter(emptyList())
             return
         }
 
-        val now = System.currentTimeMillis()
-        val renderedDevices =
+        val sortedDevices =
             observedDevices.values
                 .sortedWith(compareByDescending<ObservedDevice> { it.rssi }.thenBy { it.name.lowercase(Locale.US) })
-                .joinToString(separator = "\n\n") { device ->
-                    buildString {
-                        append(device.beaconName ?: device.name)
-                        append("\nMAC: ${device.address}")
-                        append("\nRSSI: ${device.rssi} dBm")
-                        append("\nUltima deteccion: hace ${(now - device.lastSeenAt) / 1000.0} s")
-
-                        device.iBeacon?.let { iBeacon ->
-                            append("\nTipo: iBeacon")
-                            append("\nUUID: ${iBeacon.uuid}")
-                            append("\nMajor: ${iBeacon.major}")
-                            append("\nMinor: ${iBeacon.minor}")
-                        }
-
-                        if (device.manufacturerIds.isNotEmpty()) {
-                            append("\nManufacturer IDs: ")
-                            append(device.manufacturerIds.joinToString { id -> "0x%04X".format(Locale.US, id) })
-                        }
-
-                        if (device.serviceUuids.isNotEmpty()) {
-                            append("\nService UUIDs: ${device.serviceUuids.joinToString()}")
-                        }
-                    }
-                }
-
-        beaconListText.text = renderedDevices
+        beaconListView.adapter = ObservedBeaconsAdapter(sortedDevices)
     }
 
     private fun bluetoothLeScanner(): BluetoothLeScanner? {
@@ -387,20 +353,6 @@ class BeaconScannerActivity : AppCompatActivity() {
         audioManager.setStreamVolume(AudioManager.STREAM_MUSIC, maxVolume, 0)
     }
 
-    private fun announceBeacon(beacon: BeaconDefinition) {
-        val audioResId = beacon.audioResId ?: return
-        playAudioResource(audioResId, beacon.name)
-    }
-
-    private fun announceNoBeaconIfNeeded() {
-        if (announcedNoBeacon) {
-            return
-        }
-
-        announcedNoBeacon = true
-        playAudioResource(BeaconCatalog.NO_BEACON_AUDIO_RES_ID, "sin balizas conocidas")
-    }
-
     private fun playAudioResource(audioResId: Int, label: String) {
         setMediaVolumeToMax()
 
@@ -437,12 +389,85 @@ class BeaconScannerActivity : AppCompatActivity() {
         }
     }
 
-    private fun android.util.SparseArray<ByteArray>.collectManufacturerIds(): List<Int> {
-        val ids = mutableListOf<Int>()
-        for (index in 0 until size()) {
-            ids += keyAt(index)
+    private fun showObservedBeaconEditor(device: ObservedDevice) {
+        val existingBeacon = BeaconCatalog.findKnownBeacon(this, device.iBeacon.uuid)
+        val dialogView = layoutInflater.inflate(R.layout.dialog_edit_beacon, null)
+        val nameInput = dialogView.findViewById<TextInputEditText>(R.id.beaconNameInput)
+        val uuidInput = dialogView.findViewById<TextInputEditText>(R.id.beaconUuidInput)
+        val audioInput = dialogView.findViewById<MaterialAutoCompleteTextView>(R.id.beaconAudioInput)
+        val audioOptions = BeaconCatalog.availableAudioOptions
+        val audioLabels = audioOptions.map(BeaconAudioOption::label)
+        val initialAudioIndex = audioOptions.indexOfFirst { it.audioResId == existingBeacon?.audioResId }.coerceAtLeast(0)
+
+        audioInput.setAdapter(ArrayAdapter(this, android.R.layout.simple_list_item_1, audioLabels))
+        audioInput.setText(audioLabels[initialAudioIndex], false)
+        nameInput.setText(existingBeacon?.name ?: device.displayName)
+        uuidInput.setText(device.iBeacon.uuid)
+
+        val dialog =
+            AlertDialog.Builder(this)
+                .setTitle(if (existingBeacon == null) R.string.add_known_beacon else R.string.edit_known_beacon)
+                .setView(dialogView)
+                .setNegativeButton(R.string.cancel, null)
+                .setPositiveButton(R.string.save, null)
+                .create()
+
+        dialog.setOnShowListener {
+            dialog.getButton(AlertDialog.BUTTON_POSITIVE).setOnClickListener {
+                val name = nameInput.text?.toString()?.trim().orEmpty()
+                val rawUuid = uuidInput.text?.toString()?.trim().orEmpty()
+                val selectedAudio = audioOptions.firstOrNull { it.label == audioInput.text?.toString() } ?: audioOptions.first()
+                val validationError = validateBeaconInput(name, rawUuid, existingBeacon?.uuid)
+                if (validationError != null) {
+                    Toast.makeText(this, validationError, Toast.LENGTH_SHORT).show()
+                    return@setOnClickListener
+                }
+
+                val updatedBeacons = BeaconCatalog.getKnownBeacons(this).toMutableList()
+                val updatedBeacon =
+                    BeaconDefinition(
+                        name = name,
+                        uuid = BeaconCatalog.normalizeUuid(rawUuid),
+                        audioResId = selectedAudio.audioResId,
+                    )
+
+                val existingIndex = updatedBeacons.indexOfFirst { it.uuid == existingBeacon?.uuid }
+                if (existingIndex >= 0) {
+                    updatedBeacons[existingIndex] = updatedBeacon
+                } else {
+                    updatedBeacons += updatedBeacon
+                }
+
+                BeaconCatalog.saveKnownBeacons(this, updatedBeacons)
+                preloadAudioResources()
+                renderObservedDevices()
+                dialog.dismiss()
+                Toast.makeText(this, R.string.observed_beacon_saved, Toast.LENGTH_SHORT).show()
+            }
         }
-        return ids
+
+        dialog.show()
+    }
+
+    private fun validateBeaconInput(name: String, rawUuid: String, originalUuid: String?): String? {
+        if (name.isBlank()) {
+            return getString(R.string.known_beacon_name_required)
+        }
+
+        val normalizedUuid = BeaconCatalog.normalizeUuid(rawUuid)
+        val uuidRegex = Regex("^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$")
+        if (!uuidRegex.matches(normalizedUuid)) {
+            return getString(R.string.known_beacon_uuid_invalid)
+        }
+
+        val alreadyExists =
+            BeaconCatalog.getKnownBeacons(this)
+                .any { beacon -> beacon.uuid == normalizedUuid && beacon.uuid != originalUuid }
+        if (alreadyExists) {
+            return getString(R.string.known_beacon_uuid_duplicate)
+        }
+
+        return null
     }
 
     data class ObservedDevice(
@@ -452,10 +477,49 @@ class BeaconScannerActivity : AppCompatActivity() {
         val lastSeenAt: Long,
         val beaconName: String?,
         val beaconUuid: String?,
-        val iBeacon: IBeaconData?,
-        val manufacturerIds: List<Int>,
-        val serviceUuids: List<String>,
-    )
+        val iBeacon: IBeaconData,
+    ) {
+        val displayName: String
+            get() = beaconName ?: name
+    }
+
+    private inner class ObservedBeaconsAdapter(
+        private val devices: List<ObservedDevice>,
+    ) : BaseAdapter() {
+        override fun getCount(): Int = devices.size
+
+        override fun getItem(position: Int): ObservedDevice = devices[position]
+
+        override fun getItemId(position: Int): Long = getItem(position).address.hashCode().toLong()
+
+        override fun getView(position: Int, convertView: View?, parent: ViewGroup): View {
+            val rowView = convertView ?: layoutInflater.inflate(R.layout.item_observed_beacon, parent, false)
+            val device = getItem(position)
+            val secondsSinceLastSeen = (System.currentTimeMillis() - device.lastSeenAt) / 1000.0
+            val isKnown = device.beaconUuid != null
+
+            rowView.findViewById<TextView>(R.id.observedBeaconNameText).text = device.displayName
+            rowView.findViewById<TextView>(R.id.observedBeaconStateText).text =
+                getString(if (isKnown) R.string.observed_beacon_known else R.string.observed_beacon_unknown)
+            rowView.findViewById<TextView>(R.id.observedBeaconUuidText).text =
+                getString(R.string.observed_beacon_uuid_line, device.iBeacon.uuid)
+            rowView.findViewById<TextView>(R.id.observedBeaconDetailsText).text =
+                getString(
+                    R.string.observed_beacon_details,
+                    device.iBeacon.major,
+                    device.iBeacon.minor,
+                    device.rssi,
+                    secondsSinceLastSeen
+                )
+            rowView.findViewById<TextView>(R.id.observedBeaconActionHintText).text =
+                getString(if (isKnown) R.string.observed_beacon_action_edit else R.string.observed_beacon_action_add)
+
+            rowView.findViewById<MaterialCardView>(R.id.observedBeaconCard).strokeWidth =
+                resources.getDimensionPixelSize(R.dimen.known_beacon_card_stroke)
+
+            return rowView
+        }
+    }
 
     companion object {
         private const val REFRESH_INTERVAL_MS = 1_000L

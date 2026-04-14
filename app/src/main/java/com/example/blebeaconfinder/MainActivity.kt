@@ -22,6 +22,7 @@ import android.view.KeyEvent
 import android.widget.Button
 import android.widget.TextView
 import android.widget.Toast
+import com.google.android.material.materialswitch.MaterialSwitch
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.content.ContextCompat
@@ -32,6 +33,7 @@ class MainActivity : AppCompatActivity() {
     private lateinit var actionButton: Button
     private lateinit var viewBeaconsButton: Button
     private lateinit var manageKnownBeaconsButton: Button
+    private lateinit var volumeButtonsSwitch: MaterialSwitch
 
     private val mainHandler = Handler(Looper.getMainLooper())
     private val scanMeasurements = linkedMapOf<String, BeaconMeasurement>()
@@ -42,6 +44,9 @@ class MainActivity : AppCompatActivity() {
     private var pendingAudioResId: Int? = null
     private var pendingAudioLabel: String? = null
     private var activeStreamId: Int? = null
+    private val appPreferences by lazy {
+        getSharedPreferences(APP_PREFS_NAME, Context.MODE_PRIVATE)
+    }
 
     private val audioManager: AudioManager by lazy {
         getSystemService(Context.AUDIO_SERVICE) as AudioManager
@@ -96,6 +101,7 @@ class MainActivity : AppCompatActivity() {
         actionButton = findViewById(R.id.findBeaconButton)
         viewBeaconsButton = findViewById(R.id.viewBeaconsButton)
         manageKnownBeaconsButton = findViewById(R.id.manageKnownBeaconsButton)
+        volumeButtonsSwitch = findViewById(R.id.volumeButtonsSwitch)
 
         actionButton.setOnClickListener {
             triggerNearestBeaconSearch()
@@ -108,6 +114,11 @@ class MainActivity : AppCompatActivity() {
         manageKnownBeaconsButton.setOnClickListener {
             startActivity(Intent(this, KnownBeaconsActivity::class.java))
         }
+
+        volumeButtonsSwitch.isChecked = areVolumeButtonsEnabled()
+        volumeButtonsSwitch.setOnCheckedChangeListener { _, isChecked ->
+            appPreferences.edit().putBoolean(KEY_VOLUME_BUTTONS_ENABLED, isChecked).apply()
+        }
     }
 
     override fun onResume() {
@@ -119,8 +130,12 @@ class MainActivity : AppCompatActivity() {
         return when (keyCode) {
             KeyEvent.KEYCODE_VOLUME_UP,
             KeyEvent.KEYCODE_VOLUME_DOWN -> {
-                triggerNearestBeaconSearch()
-                true
+                if (areVolumeButtonsEnabled()) {
+                    triggerNearestBeaconSearch()
+                    true
+                } else {
+                    super.onKeyDown(keyCode, event)
+                }
             }
             else -> super.onKeyDown(keyCode, event)
         }
@@ -317,6 +332,10 @@ class MainActivity : AppCompatActivity() {
         Toast.makeText(this, message, Toast.LENGTH_SHORT).show()
     }
 
+    private fun areVolumeButtonsEnabled(): Boolean {
+        return appPreferences.getBoolean(KEY_VOLUME_BUTTONS_ENABLED, true)
+    }
+
     private fun initializeSoundPool() {
         soundPool =
             SoundPool.Builder()
@@ -421,6 +440,8 @@ class MainActivity : AppCompatActivity() {
     }
 
     companion object {
+        private const val APP_PREFS_NAME = "ble_beacon_finder_prefs"
+        private const val KEY_VOLUME_BUTTONS_ENABLED = "volume_buttons_enabled"
         private const val SCAN_DURATION_MS = 3_000L
     }
 }
