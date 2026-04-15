@@ -1,89 +1,119 @@
 <?xml version="1.0" encoding="utf-8"?>
 <androidx.constraintlayout.widget.ConstraintLayout xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:app="http://schemas.android.com/apk/res-auto"
+    xmlns:tools="http://schemas.android.com/tools"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
     android:background="@color/background_color"
-    android:padding="24dp">
+    android:paddingHorizontal="24dp"
+    android:paddingTop="28dp"
+    android:paddingBottom="24dp">
 
     <TextView
         android:id="@+id/screenTitle"
-        android:layout_width="0dp"
+        android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:gravity="center_vertical"
         android:text="@string/app_name"
-        android:textAppearance="@style/TextAppearance.Material3.TitleLarge"
+        android:textAppearance="@style/TextAppearance.Material3.DisplaySmall"
         android:textColor="@color/text_color"
-        app:layout_constraintEnd_toStartOf="@id/topButtonsContainer"
+        app:layout_constraintEnd_toEndOf="parent"
         app:layout_constraintStart_toStartOf="parent"
         app:layout_constraintTop_toTopOf="parent" />
 
     <LinearLayout
         android:id="@+id/topButtonsContainer"
-        android:layout_width="wrap_content"
+        android:layout_width="0dp"
         android:layout_height="wrap_content"
-        android:gravity="end"
+        android:layout_marginTop="20dp"
+        android:gravity="center_horizontal"
         android:orientation="vertical"
         app:layout_constraintEnd_toEndOf="parent"
-        app:layout_constraintTop_toTopOf="parent">
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintTop_toBottomOf="@id/screenTitle">
 
         <com.google.android.material.button.MaterialButton
             android:id="@+id/viewBeaconsButton"
             style="@style/Widget.Material3.Button.OutlinedButton"
-            android:layout_width="wrap_content"
+            android:layout_width="match_parent"
             android:layout_height="wrap_content"
+            android:insetTop="0dp"
+            android:insetBottom="0dp"
+            android:minHeight="56dp"
             android:text="@string/view_beacons"
-            android:textAllCaps="false" />
+            android:textAllCaps="false"
+            android:textColor="@color/text_color"
+            app:cornerRadius="18dp"
+            app:strokeColor="@color/card_stroke_color" />
 
         <com.google.android.material.button.MaterialButton
             android:id="@+id/manageKnownBeaconsButton"
             style="@style/Widget.Material3.Button.OutlinedButton"
-            android:layout_width="wrap_content"
+            android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:layout_marginTop="8dp"
+            android:layout_marginTop="10dp"
+            android:insetTop="0dp"
+            android:insetBottom="0dp"
+            android:minHeight="56dp"
             android:text="@string/manage_known_beacons"
-            android:textAllCaps="false" />
+            android:textAllCaps="false"
+            android:textColor="@color/text_color"
+            app:cornerRadius="18dp"
+            app:strokeColor="@color/card_stroke_color" />
     </LinearLayout>
+
+    <com.google.android.material.card.MaterialCardView
+        android:id="@+id/volumeSwitchCard"
+        android:layout_width="0dp"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="18dp"
+        app:cardBackgroundColor="@color/surface_color"
+        app:cardCornerRadius="24dp"
+        app:cardElevation="0dp"
+        app:strokeColor="@color/card_stroke_color"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintTop_toBottomOf="@id/topButtonsContainer">
+
+        <com.google.android.material.materialswitch.MaterialSwitch
+            android:id="@+id/volumeButtonsSwitch"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:minHeight="72dp"
+            android:paddingHorizontal="18dp"
+            android:paddingVertical="12dp"
+            android:text="@string/volume_buttons_switch"
+            android:textAppearance="@style/TextAppearance.Material3.BodyLarge"
+            android:textColor="@color/text_color" />
+    </com.google.android.material.card.MaterialCardView>
 
     <TextView
         android:id="@+id/statusText"
         android:layout_width="0dp"
         android:layout_height="wrap_content"
-        android:layout_marginTop="20dp"
+        android:layout_marginTop="28dp"
         android:gravity="center"
         android:text="@string/initial_status"
-        android:textColor="@color/text_color"
-        android:textAppearance="@style/TextAppearance.Material3.BodyLarge"
-        app:layout_constraintEnd_toEndOf="parent"
-        app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintTop_toBottomOf="@id/volumeButtonsSwitch" />
-
-    <com.google.android.material.materialswitch.MaterialSwitch
-        android:id="@+id/volumeButtonsSwitch"
-        android:layout_width="0dp"
-        android:layout_height="wrap_content"
-        android:layout_marginTop="16dp"
-        android:text="@string/volume_buttons_switch"
-        android:textAppearance="@style/TextAppearance.Material3.BodyMedium"
+        android:textAppearance="@style/TextAppearance.Material3.HeadlineSmall"
         android:textColor="@color/text_color"
         app:layout_constraintEnd_toEndOf="parent"
         app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintTop_toBottomOf="@id/screenTitle" />
+        app:layout_constraintTop_toBottomOf="@id/volumeSwitchCard"
+        tools:text="Presiona el boton para detectar la baliza conocida mas cercana." />
 
     <com.google.android.material.button.MaterialButton
         android:id="@+id/findBeaconButton"
-        android:layout_width="220dp"
-        android:layout_height="220dp"
+        android:layout_width="200dp"
+        android:layout_height="200dp"
         android:backgroundTint="@color/button_color"
         android:text="@string/find_beacon"
         android:textAllCaps="false"
         android:textColor="@android:color/white"
-        android:textSize="22sp"
-        app:cornerRadius="110dp"
+        android:textSize="21sp"
+        app:cornerRadius="100dp"
         app:layout_constraintBottom_toBottomOf="parent"
         app:layout_constraintEnd_toEndOf="parent"
         app:layout_constraintStart_toStartOf="parent"
         app:layout_constraintTop_toBottomOf="@id/statusText"
-        app:layout_constraintVertical_bias="0.8" />
+        app:layout_constraintVertical_bias="0.82" />
 
 </androidx.constraintlayout.widget.ConstraintLayout>
