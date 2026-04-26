@@ -1,5 +1,6 @@
 package com.example.blebeaconfinder
 
+import android.content.Intent
 import android.os.Bundle
 import android.view.View
 import android.view.ViewGroup
@@ -20,6 +21,7 @@ class KnownBeaconsActivity : AppCompatActivity() {
     private lateinit var emptyText: TextView
     private lateinit var beaconListView: ListView
     private lateinit var addBeaconButton: MaterialButton
+    private lateinit var manageCustomAudioButton: MaterialButton
     private lateinit var backButton: MaterialButton
 
     private var knownBeacons = emptyList<BeaconDefinition>()
@@ -31,10 +33,14 @@ class KnownBeaconsActivity : AppCompatActivity() {
         emptyText = findViewById(R.id.emptyKnownBeaconsText)
         beaconListView = findViewById(R.id.knownBeaconsListView)
         addBeaconButton = findViewById(R.id.addBeaconButton)
+        manageCustomAudioButton = findViewById(R.id.manageCustomAudioButton)
         backButton = findViewById(R.id.backKnownBeaconsButton)
 
         backButton.setOnClickListener { finish() }
         addBeaconButton.setOnClickListener { showBeaconEditor(existingBeacon = null) }
+        manageCustomAudioButton.setOnClickListener {
+            startActivity(Intent(this, CustomAudioActivity::class.java))
+        }
         beaconListView.setOnItemClickListener { _, _, position, _ ->
             knownBeacons.getOrNull(position)?.let { beacon ->
                 showBeaconEditor(existingBeacon = beacon)
@@ -66,9 +72,13 @@ class KnownBeaconsActivity : AppCompatActivity() {
         val nameInput = dialogView.findViewById<TextInputEditText>(R.id.beaconNameInput)
         val uuidInput = dialogView.findViewById<TextInputEditText>(R.id.beaconUuidInput)
         val audioInput = dialogView.findViewById<MaterialAutoCompleteTextView>(R.id.beaconAudioInput)
-        val audioOptions = BeaconCatalog.availableAudioOptions
+        val audioOptions = BeaconCatalog.availableAudioOptions(this)
         val audioLabels = audioOptions.map(BeaconAudioOption::label)
-        val initialAudioIndex = audioOptions.indexOfFirst { it.audioResId == existingBeacon?.audioResId }.coerceAtLeast(0)
+        val initialAudioIndex =
+            audioOptions.indexOfFirst {
+                it.builtInResId == existingBeacon?.audioResId &&
+                    it.customAudioId == existingBeacon?.customAudioId
+            }.coerceAtLeast(0)
 
         audioInput.setAdapter(
             ArrayAdapter(
@@ -118,7 +128,8 @@ class KnownBeaconsActivity : AppCompatActivity() {
                     BeaconDefinition(
                         name = name,
                         uuid = BeaconCatalog.normalizeUuid(rawUuid),
-                        audioResId = selectedAudio.audioResId,
+                        audioResId = selectedAudio.builtInResId,
+                        customAudioId = selectedAudio.customAudioId,
                     )
 
                 if (existingBeacon == null) {
@@ -193,7 +204,7 @@ class KnownBeaconsActivity : AppCompatActivity() {
             rowView.findViewById<TextView>(R.id.beaconNameText).text = beacon.name
             rowView.findViewById<TextView>(R.id.beaconUuidText).text = beacon.uuid
             rowView.findViewById<TextView>(R.id.beaconAudioValueText).text =
-                BeaconCatalog.audioLabelFor(beacon.audioResId)
+                BeaconCatalog.audioLabelFor(this@KnownBeaconsActivity, beacon.audioResId, beacon.customAudioId)
             rowView.findViewById<TextView>(R.id.beaconActionHintText).text =
                 getString(R.string.known_beacon_item_hint)
 

@@ -12,6 +12,7 @@ import android.content.Intent
 import android.content.pm.PackageManager
 import android.media.AudioAttributes
 import android.media.AudioManager
+import android.media.MediaPlayer
 import android.media.SoundPool
 import android.os.Build
 import android.os.Bundle
@@ -39,6 +40,7 @@ class MainActivity : AppCompatActivity() {
     private val scanMeasurements = linkedMapOf<String, BeaconMeasurement>()
     private var isScanning = false
     private lateinit var soundPool: SoundPool
+    private var mediaPlayer: MediaPlayer? = null
     private val loadedAudioResIds = mutableSetOf<Int>()
     private val soundIdsByResId = mutableMapOf<Int, Int>()
     private var pendingAudioResId: Int? = null
@@ -143,6 +145,7 @@ class MainActivity : AppCompatActivity() {
 
     override fun onDestroy() {
         stopScan()
+        stopAndReleaseMediaPlayer()
         releaseSoundPool()
         super.onDestroy()
     }
@@ -224,15 +227,13 @@ class MainActivity : AppCompatActivity() {
         updateStatus(
             buildString {
                 append("Baliza mas cercana: ${nearestBeacon.name}")
-                append("\nUUID: ${nearestBeacon.uuid}")
-                nearestBeacon.major?.let { append("\nMajor: $it") }
-                nearestBeacon.minor?.let { append("\nMinor: $it") }
                 append("\nRSSI promedio: ${averageRssi} dBm")
                 append("\nMuestras: ${nearestMeasurement.sampleCount}")
             }
         )
-        nearestBeacon.audioResId?.let { audioResId ->
-            playAudioResource(audioResId, nearestBeacon.name)
+        when {
+            nearestBeacon.customAudioId != null -> playCustomAudio(nearestBeacon.customAudioId, nearestBeacon.name)
+            nearestBeacon.audioResId != null -> playAudioResource(nearestBeacon.audioResId, nearestBeacon.name)
         }
     }
 
@@ -289,6 +290,7 @@ class MainActivity : AppCompatActivity() {
             minor = iBeacon.minor,
             rssi = rssi,
             audioResId = knownBeacon.audioResId,
+            customAudioId = knownBeacon.customAudioId,
         )
     }
 
@@ -386,6 +388,7 @@ class MainActivity : AppCompatActivity() {
 
     private fun playAudioResource(audioResId: Int, label: String) {
         setMediaVolumeToMax()
+        stopAndReleaseMediaPlayer()
 
         if (loadedAudioResIds.contains(audioResId)) {
             playLoadedSound(audioResId, label)
@@ -395,6 +398,31 @@ class MainActivity : AppCompatActivity() {
         }
     }
 
+    private fun playCustomAudio(customAudioId: String, label: String) {
+        setMediaVolumeToMax()
+
+        val audioFile = CustomAudioStore.resolveAudioFile(this, customAudioId)
+        if (audioFile == null) {
+            updateStatus("No se encontro el audio para $label")
+            return
+        }
+
+        stopActiveSoundStream()
+        stopAndReleaseMediaPlayer()
+        mediaPlayer =
+            MediaPlayer().apply {
+                setDataSource(audioFile.absolutePath)
+                setOnCompletionListener {
+                    it.release()
+                    if (mediaPlayer === it) {
+                        mediaPlayer = null
+                    }
+                }
+                prepare()
+                start()
+            }
+    }
+
     private fun playLoadedSound(audioResId: Int, label: String) {
         val soundId = soundIdsByResId[audioResId]
         if (soundId == null) {
@@ -402,7 +430,8 @@ class MainActivity : AppCompatActivity() {
             return
         }
 
-        activeStreamId?.let(soundPool::stop)
+        stopAndReleaseMediaPlayer()
+        stopActiveSoundStream()
         val streamId = soundPool.play(soundId, 1f, 1f, 1, 0, 1f)
         if (streamId == 0) {
             updateStatus("No se pudo reproducir el audio para $label")
@@ -420,6 +449,21 @@ class MainActivity : AppCompatActivity() {
         }
     }
 
+    private fun stopAndReleaseMediaPlayer() {
+        val player = mediaPlayer ?: return
+        runCatching { player.stop() }
+        runCatching { player.release() }
+        mediaPlayer = null
+    }
+
+    private fun stopActiveSoundStream() {
+        val streamId = activeStreamId ?: return
+        if (::soundPool.isInitialized) {
+            runCatching { soundPool.stop(streamId) }
+        }
+        activeStreamId = null
+    }
+
     data class BeaconCandidate(
         val name: String,
         val address: String,
@@ -428,6 +472,7 @@ class MainActivity : AppCompatActivity() {
         val minor: Int?,
         val rssi: Int,
         val audioResId: Int?,
+        val customAudioId: String?,
     )
 
     data class BeaconMeasurement(
