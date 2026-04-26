@@ -27,13 +27,21 @@ object BeaconCatalog {
 
     val NO_BEACON_AUDIO_RES_ID = R.raw.nobeacon
 
-    val availableAudioOptions =
-        listOf(
-            BeaconAudioOption(null, "Sin audio"),
-            BeaconAudioOption(R.raw.cocina, "Cocina"),
-            BeaconAudioOption(R.raw.pieza, "Pieza"),
-            BeaconAudioOption(R.raw.living, "Living"),
-        )
+    val availableAudioOptions: List<BeaconAudioOption> by lazy {
+        val rawClass = R.raw::class.java
+        rawClass.fields
+            .filter { it.name != "item" && it.name != "nobeacon" }
+            .map { field ->
+                val resId = field.getInt(null)
+                val label = field.name
+                    .replace("_", " ")
+                    .split(" ")
+                    .joinToString(" ") { it.replaceFirstChar { c -> c.uppercase() } }
+                BeaconAudioOption(resId, label)
+            }
+            .sortedBy { it.label }
+            .let { listOf(BeaconAudioOption(null, "Sin audio")) + it }
+    }
 
     private val defaultKnownBeacons =
         listOf(
