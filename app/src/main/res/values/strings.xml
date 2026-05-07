@@ -10,8 +10,8 @@
     <string name="custom_audios_title">Audios personalizados</string>
     <string name="custom_audios_subtitle">Graba audios propios desde el celular y luego asignalos a las balizas conocidas.</string>
     <string name="custom_audio_name_hint">Nombre del audio</string>
-    <string name="custom_audio_name_required">Ingresa un nombre antes de grabar el audio.</string>
-    <string name="custom_audio_status_idle">Ingresa un nombre y presiona grabar para crear un audio personalizado.</string>
+    <string name="custom_audio_name_required">Ingresa un nombre antes de guardar el audio.</string>
+    <string name="custom_audio_status_idle">Presiona grabar para crear un audio personalizado. El nombre solo se pide al guardarlo.</string>
     <string name="custom_audio_status_recording">Grabando desde el microfono del telefono...</string>
     <string name="custom_audio_status_ready">Grabacion lista para guardar.</string>
     <string name="custom_audio_saved">Audio personalizado guardado.</string>

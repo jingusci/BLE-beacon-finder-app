@@ -65,14 +65,11 @@ class CustomAudioActivity : AppCompatActivity() {
         }
         saveButton.setOnClickListener { saveRecordedAudio() }
         audioListView.setOnItemClickListener { _, _, position, _ ->
-            CustomAudioStore.getCustomAudios(this).getOrNull(position)?.let(::showRenameDialog)
-        }
-        audioListView.setOnItemLongClickListener { _, _, position, _ ->
-            CustomAudioStore.getCustomAudios(this).getOrNull(position)?.let(::confirmDeleteAudio)
-            true
+            CustomAudioStore.getCustomAudios(this).getOrNull(position)?.let(::showAudioActionsDialog)
         }
 
         renderCustomAudios()
+        updateSaveButtonState()
     }
 
     override fun onStop() {
@@ -99,12 +96,6 @@ class CustomAudioActivity : AppCompatActivity() {
     }
 
     private fun startRecording() {
-        val audioName = nameInput.text?.toString()?.trim().orEmpty()
-        if (audioName.isBlank()) {
-            Toast.makeText(this, R.string.custom_audio_name_required, Toast.LENGTH_SHORT).show()
-            return
-        }
-
         pendingAudioFile?.delete()
         pendingAudioFile = CustomAudioStore.newAudioFile(this)
         hasRecordedAudio = false
@@ -131,6 +122,7 @@ class CustomAudioActivity : AppCompatActivity() {
             isRecording = true
             recordButton.text = getString(R.string.stop_recording)
             saveButton.isEnabled = false
+            updateSaveButtonState()
             statusText.text = getString(R.string.custom_audio_status_recording)
         }.onFailure {
             recorder.release()
@@ -153,6 +145,7 @@ class CustomAudioActivity : AppCompatActivity() {
         hasRecordedAudio = pendingAudioFile?.exists() == true
         recordButton.text = getString(R.string.start_recording)
         saveButton.isEnabled = hasRecordedAudio
+        updateSaveButtonState()
         statusText.text =
             if (hasRecordedAudio) getString(R.string.custom_audio_status_ready) else getString(R.string.custom_audio_recording_failed)
     }
@@ -181,6 +174,7 @@ class CustomAudioActivity : AppCompatActivity() {
         pendingAudioFile = null
         hasRecordedAudio = false
         saveButton.isEnabled = false
+        updateSaveButtonState()
         nameInput.setText("")
         statusText.text = getString(R.string.custom_audio_status_idle)
         Toast.makeText(this, R.string.custom_audio_saved, Toast.LENGTH_SHORT).show()
@@ -192,6 +186,24 @@ class CustomAudioActivity : AppCompatActivity() {
         emptyText.visibility = if (audios.isEmpty()) View.VISIBLE else View.GONE
         audioListView.visibility = if (audios.isEmpty()) View.GONE else View.VISIBLE
         audioListView.adapter = CustomAudioAdapter(audios)
+    }
+
+    private fun showAudioActionsDialog(audio: CustomAudioDefinition) {
+        val actions = arrayOf(
+            getString(R.string.rename_audio),
+            getString(R.string.delete_audio),
+        )
+
+        AlertDialog.Builder(this)
+            .setTitle(audio.name)
+            .setItems(actions) { _, which ->
+                when (which) {
+                    0 -> showRenameDialog(audio)
+                    1 -> confirmDeleteAudio(audio)
+                }
+            }
+            .setNegativeButton(R.string.cancel, null)
+            .show()
     }
 
     private fun showRenameDialog(audio: CustomAudioDefinition) {
@@ -228,6 +240,10 @@ class CustomAudioActivity : AppCompatActivity() {
                 Toast.makeText(this, R.string.custom_audio_deleted, Toast.LENGTH_SHORT).show()
             }
             .show()
+    }
+
+    private fun updateSaveButtonState() {
+        saveButton.alpha = if (saveButton.isEnabled) 1f else 0.82f
     }
 
     private inner class CustomAudioAdapter(

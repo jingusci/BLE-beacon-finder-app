@@ -131,6 +131,12 @@ class BeaconScannerActivity : AppCompatActivity() {
             return
         }
 
+        val missingPermissions = requiredPermissions().filterNot(::hasPermission)
+        if (missingPermissions.isNotEmpty()) {
+            permissionLauncher.launch(missingPermissions.toTypedArray())
+            return
+        }
+
         val adapter = bluetoothAdapter
         if (adapter == null) {
             updateStatus("No se encontro adaptador Bluetooth.")
@@ -140,12 +146,6 @@ class BeaconScannerActivity : AppCompatActivity() {
         if (!adapter.isEnabled) {
             val enableIntent = Intent(BluetoothAdapter.ACTION_REQUEST_ENABLE)
             enableBluetoothLauncher.launch(enableIntent)
-            return
-        }
-
-        val missingPermissions = requiredPermissions().filterNot(::hasPermission)
-        if (missingPermissions.isNotEmpty()) {
-            permissionLauncher.launch(missingPermissions.toTypedArray())
             return
         }
 

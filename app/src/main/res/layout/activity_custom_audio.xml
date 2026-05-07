@@ -46,11 +46,13 @@
         android:layout_height="wrap_content"
         android:layout_marginTop="18dp"
         android:hint="@string/custom_audio_name_hint"
+        android:textColorHint="@color/text_color"
         app:boxBackgroundMode="outline"
         app:boxCornerRadiusBottomEnd="18dp"
         app:boxCornerRadiusBottomStart="18dp"
         app:boxCornerRadiusTopEnd="18dp"
         app:boxCornerRadiusTopStart="18dp"
+        app:hintTextColor="@color/text_color"
         app:layout_constraintEnd_toEndOf="parent"
         app:layout_constraintStart_toStartOf="parent"
         app:layout_constraintTop_toBottomOf="@id/customAudioSubtitle">
@@ -59,7 +61,9 @@
             android:id="@+id/customAudioNameInput"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:maxLines="1" />
+            android:maxLines="1"
+            android:textColor="@color/text_color"
+            android:textColorHint="@color/text_color" />
     </com.google.android.material.textfield.TextInputLayout>
 
     <TextView
@@ -80,8 +84,10 @@
         android:layout_width="0dp"
         android:layout_height="wrap_content"
         android:layout_marginTop="14dp"
+        android:backgroundTint="@color/button_color"
         android:text="@string/start_recording"
         android:textAllCaps="false"
+        android:textColor="@color/surface_color"
         app:layout_constraintEnd_toStartOf="@id/saveCustomAudioButton"
         app:layout_constraintHorizontal_chainStyle="spread_inside"
         app:layout_constraintStart_toStartOf="parent"
@@ -89,13 +95,16 @@
 
     <com.google.android.material.button.MaterialButton
         android:id="@+id/saveCustomAudioButton"
-        style="@style/Widget.Material3.Button.OutlinedButton"
+        style="@style/Widget.Material3.Button"
         android:layout_width="0dp"
         android:layout_height="wrap_content"
         android:layout_marginStart="10dp"
+        android:alpha="0.82"
+        android:backgroundTint="@color/save_audio_button_tint"
         android:enabled="false"
         android:text="@string/save_audio"
         android:textAllCaps="false"
+        android:textColor="@color/save_audio_button_text"
         app:layout_constraintBaseline_toBaselineOf="@id/recordCustomAudioButton"
         app:layout_constraintEnd_toEndOf="parent"
         app:layout_constraintStart_toEndOf="@id/recordCustomAudioButton" />
