@@ -43,10 +43,6 @@ class MainActivity : AppCompatActivity() {
         getSharedPreferences(APP_PREFS_NAME, Context.MODE_PRIVATE)
     }
 
-    private val audioManager: AudioManager by lazy {
-        getSystemService(Context.AUDIO_SERVICE) as AudioManager
-    }
-
     private val bluetoothAdapter: BluetoothAdapter? by lazy {
         val bluetoothManager = getSystemService(Context.BLUETOOTH_SERVICE) as BluetoothManager
         bluetoothManager.adapter
@@ -346,13 +342,7 @@ class MainActivity : AppCompatActivity() {
         return appPreferences.getBoolean(KEY_VOLUME_BUTTONS_ENABLED, true)
     }
 
-    private fun setMediaVolumeToMax() {
-        val maxVolume = audioManager.getStreamMaxVolume(AudioManager.STREAM_MUSIC)
-        audioManager.setStreamVolume(AudioManager.STREAM_MUSIC, maxVolume, 0)
-    }
-
     private fun playBuiltInAudio(audioResId: Int, label: String) {
-        setMediaVolumeToMax()
         stopAndReleaseMediaPlayer()
         playMediaPlayer(
             label = label,
@@ -361,8 +351,6 @@ class MainActivity : AppCompatActivity() {
     }
 
     private fun playCustomAudio(customAudioId: String, label: String) {
-        setMediaVolumeToMax()
-
         val audioFile = CustomAudioStore.resolveAudioFile(this, customAudioId)
         if (audioFile == null) {
             updateStatus("No se encontro el audio para $label")

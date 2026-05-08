@@ -13,6 +13,7 @@
         android:layout_height="wrap_content"
         android:text="@string/back"
         android:textAllCaps="false"
+        android:textColor="@color/text_color"
         app:layout_constraintStart_toStartOf="parent"
         app:layout_constraintTop_toTopOf="parent" />
 
