@@ -162,7 +162,8 @@ if exist "%TARGET_DIR%" (
 )
 
 mkdir "%TARGET_DIR%"
-copy /Y "%APK_PATH%" "%TARGET_DIR%\app-debug.apk" >NUL
+set TARGET_APK_NAME=%NEXT_VERSION%.apk
+copy /Y "%APK_PATH%" "%TARGET_DIR%\%TARGET_APK_NAME%" >NUL
 (
     echo # %NEXT_VERSION%
     echo.
@@ -170,11 +171,11 @@ copy /Y "%APK_PATH%" "%TARGET_DIR%\app-debug.apk" >NUL
     echo - %DATE% %TIME%
     echo.
     echo ## APK
-    echo - app-debug.apk
+    echo - %TARGET_APK_NAME%
     echo.
     echo ## Cambios respecto a la version anterior
     echo - Completar.
 ) > "%TARGET_DIR%\README.md"
-echo APK debug copiado en "%TARGET_DIR%\app-debug.apk"
+echo APK debug copiado en "%TARGET_DIR%\%TARGET_APK_NAME%"
 endlocal
 goto :eof

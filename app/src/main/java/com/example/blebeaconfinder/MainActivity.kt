@@ -10,9 +10,8 @@ import android.bluetooth.le.ScanResult
 import android.content.Context
 import android.content.Intent
 import android.content.pm.PackageManager
-import android.media.AudioAttributes
 import android.media.AudioManager
-import android.media.SoundPool
+import android.media.MediaPlayer
 import android.os.Build
 import android.os.Bundle
 import android.os.Handler
@@ -38,18 +37,10 @@ class MainActivity : AppCompatActivity() {
     private val mainHandler = Handler(Looper.getMainLooper())
     private val scanMeasurements = linkedMapOf<String, BeaconMeasurement>()
     private var isScanning = false
-    private lateinit var soundPool: SoundPool
-    private val loadedAudioResIds = mutableSetOf<Int>()
-    private val soundIdsByResId = mutableMapOf<Int, Int>()
-    private var pendingAudioResId: Int? = null
-    private var pendingAudioLabel: String? = null
-    private var activeStreamId: Int? = null
+    private var mediaPlayer: MediaPlayer? = null
+    private var pendingActionAfterPermissions = PendingPermissionAction.NONE
     private val appPreferences by lazy {
         getSharedPreferences(APP_PREFS_NAME, Context.MODE_PRIVATE)
-    }
-
-    private val audioManager: AudioManager by lazy {
-        getSystemService(Context.AUDIO_SERVICE) as AudioManager
     }
 
     private val bluetoothAdapter: BluetoothAdapter? by lazy {
@@ -61,10 +52,13 @@ class MainActivity : AppCompatActivity() {
         registerForActivityResult(ActivityResultContracts.RequestMultiplePermissions()) { permissions ->
             val deniedPermission = permissions.entries.firstOrNull { !it.value }?.key
             if (deniedPermission == null) {
-                startNearestBeaconScan()
+                if (pendingActionAfterPermissions == PendingPermissionAction.SCAN) {
+                    continueScanAfterPermissions()
+                }
             } else {
                 updateStatus("Faltan permisos para escanear balizas BLE.")
             }
+            pendingActionAfterPermissions = PendingPermissionAction.NONE
         }
 
     private val enableBluetoothLauncher =
@@ -95,7 +89,6 @@ class MainActivity : AppCompatActivity() {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_main)
         volumeControlStream = AudioManager.STREAM_MUSIC
-        initializeSoundPool()
 
         statusText = findViewById(R.id.statusText)
         actionButton = findViewById(R.id.findBeaconButton)
@@ -119,11 +112,12 @@ class MainActivity : AppCompatActivity() {
         volumeButtonsSwitch.setOnCheckedChangeListener { _, isChecked ->
             appPreferences.edit().putBoolean(KEY_VOLUME_BUTTONS_ENABLED, isChecked).apply()
         }
+
+        requestStartupPermissionsIfNeeded()
     }
 
     override fun onResume() {
         super.onResume()
-        preloadAudioResources()
     }
 
     override fun onKeyDown(keyCode: Int, event: KeyEvent?): Boolean {
@@ -143,7 +137,7 @@ class MainActivity : AppCompatActivity() {
 
     override fun onDestroy() {
         stopScan()
-        releaseSoundPool()
+        stopAndReleaseMediaPlayer()
         super.onDestroy()
     }
 
@@ -157,6 +151,17 @@ class MainActivity : AppCompatActivity() {
             return
         }
 
+        val missingPermissions = requiredPermissions().filterNot(::hasPermission)
+        if (missingPermissions.isNotEmpty()) {
+            pendingActionAfterPermissions = PendingPermissionAction.SCAN
+            permissionLauncher.launch(missingPermissions.toTypedArray())
+            return
+        }
+
+        continueScanAfterPermissions()
+    }
+
+    private fun continueScanAfterPermissions() {
         val adapter = bluetoothAdapter
         if (adapter == null) {
             updateStatus("No se encontro adaptador Bluetooth.")
@@ -166,12 +171,6 @@ class MainActivity : AppCompatActivity() {
         if (!adapter.isEnabled) {
             val enableIntent = Intent(BluetoothAdapter.ACTION_REQUEST_ENABLE)
             enableBluetoothLauncher.launch(enableIntent)
-            return
-        }
-
-        val missingPermissions = requiredPermissions().filterNot(::hasPermission)
-        if (missingPermissions.isNotEmpty()) {
-            permissionLauncher.launch(missingPermissions.toTypedArray())
             return
         }
 
@@ -214,7 +213,7 @@ class MainActivity : AppCompatActivity() {
         val nearestMeasurement = scanMeasurements.values.maxByOrNull { it.averageRssi }
         if (nearestMeasurement == null) {
             updateStatus("No se detectaron balizas iBeacon.")
-            playAudioResource(BeaconCatalog.NO_BEACON_AUDIO_RES_ID, "sin balizas conocidas")
+            playBuiltInAudio(BeaconCatalog.NO_BEACON_AUDIO_RES_ID, "sin balizas conocidas")
             return
         }
 
@@ -224,15 +223,13 @@ class MainActivity : AppCompatActivity() {
         updateStatus(
             buildString {
                 append("Baliza mas cercana: ${nearestBeacon.name}")
-                append("\nUUID: ${nearestBeacon.uuid}")
-                nearestBeacon.major?.let { append("\nMajor: $it") }
-                nearestBeacon.minor?.let { append("\nMinor: $it") }
                 append("\nRSSI promedio: ${averageRssi} dBm")
                 append("\nMuestras: ${nearestMeasurement.sampleCount}")
             }
         )
-        nearestBeacon.audioResId?.let { audioResId ->
-            playAudioResource(audioResId, nearestBeacon.name)
+        when {
+            nearestBeacon.customAudioId != null -> playCustomAudio(nearestBeacon.customAudioId, nearestBeacon.name)
+            nearestBeacon.audioResId != null -> playBuiltInAudio(nearestBeacon.audioResId, nearestBeacon.name)
         }
     }
 
@@ -289,6 +286,7 @@ class MainActivity : AppCompatActivity() {
             minor = iBeacon.minor,
             rssi = rssi,
             audioResId = knownBeacon.audioResId,
+            customAudioId = knownBeacon.customAudioId,
         )
     }
 
@@ -332,92 +330,64 @@ class MainActivity : AppCompatActivity() {
         Toast.makeText(this, message, Toast.LENGTH_SHORT).show()
     }
 
+    private fun requestStartupPermissionsIfNeeded() {
+        val missingPermissions = requiredPermissions().filterNot(::hasPermission)
+        if (missingPermissions.isNotEmpty()) {
+            pendingActionAfterPermissions = PendingPermissionAction.NONE
+            permissionLauncher.launch(missingPermissions.toTypedArray())
+        }
+    }
+
     private fun areVolumeButtonsEnabled(): Boolean {
         return appPreferences.getBoolean(KEY_VOLUME_BUTTONS_ENABLED, true)
     }
 
-    private fun initializeSoundPool() {
-        soundPool =
-            SoundPool.Builder()
-                .setMaxStreams(1)
-                .setAudioAttributes(
-                    AudioAttributes.Builder()
-                        .setUsage(AudioAttributes.USAGE_ASSISTANCE_SONIFICATION)
-                        .setContentType(AudioAttributes.CONTENT_TYPE_SPEECH)
-                        .build()
-                )
-                .build()
-
-        soundPool.setOnLoadCompleteListener { _, sampleId, status ->
-            if (status != 0) {
-                updateStatus("No se pudo cargar un audio de la app.")
-                return@setOnLoadCompleteListener
-            }
-
-            val loadedResId = soundIdsByResId.entries.firstOrNull { it.value == sampleId }?.key ?: return@setOnLoadCompleteListener
-            loadedAudioResIds += loadedResId
-
-            if (pendingAudioResId == loadedResId) {
-                playLoadedSound(loadedResId, pendingAudioLabel ?: "audio")
-            }
-        }
-
-        preloadAudioResources()
+    private fun playBuiltInAudio(audioResId: Int, label: String) {
+        stopAndReleaseMediaPlayer()
+        playMediaPlayer(
+            label = label,
+            configure = { setDataSource(this@MainActivity, android.net.Uri.parse("android.resource://${packageName}/$audioResId")) }
+        )
     }
 
-    private fun preloadAudioResources() {
-        val audioResIds =
-            buildList {
-                add(BeaconCatalog.NO_BEACON_AUDIO_RES_ID)
-                addAll(BeaconCatalog.getKnownBeacons(this@MainActivity).mapNotNull { it.audioResId })
-            }.distinct()
-
-        audioResIds.forEach { audioResId ->
-            if (soundIdsByResId.containsKey(audioResId).not()) {
-                soundIdsByResId[audioResId] = soundPool.load(this, audioResId, 1)
-            }
-        }
-    }
-
-    private fun setMediaVolumeToMax() {
-        val maxVolume = audioManager.getStreamMaxVolume(AudioManager.STREAM_MUSIC)
-        audioManager.setStreamVolume(AudioManager.STREAM_MUSIC, maxVolume, 0)
-    }
-
-    private fun playAudioResource(audioResId: Int, label: String) {
-        setMediaVolumeToMax()
-
-        if (loadedAudioResIds.contains(audioResId)) {
-            playLoadedSound(audioResId, label)
-        } else {
-            pendingAudioResId = audioResId
-            pendingAudioLabel = label
-        }
-    }
-
-    private fun playLoadedSound(audioResId: Int, label: String) {
-        val soundId = soundIdsByResId[audioResId]
-        if (soundId == null) {
+    private fun playCustomAudio(customAudioId: String, label: String) {
+        val audioFile = CustomAudioStore.resolveAudioFile(this, customAudioId)
+        if (audioFile == null) {
             updateStatus("No se encontro el audio para $label")
             return
         }
 
-        activeStreamId?.let(soundPool::stop)
-        val streamId = soundPool.play(soundId, 1f, 1f, 1, 0, 1f)
-        if (streamId == 0) {
-            updateStatus("No se pudo reproducir el audio para $label")
-            return
-        }
-
-        activeStreamId = streamId
-        pendingAudioResId = null
-        pendingAudioLabel = null
+        stopAndReleaseMediaPlayer()
+        playMediaPlayer(label = label, configure = { setDataSource(audioFile.absolutePath) })
     }
 
-    private fun releaseSoundPool() {
-        if (::soundPool.isInitialized) {
-            soundPool.release()
+    private fun playMediaPlayer(label: String, configure: MediaPlayer.() -> Unit) {
+        val player = MediaPlayer()
+        runCatching {
+            player.apply {
+                configure()
+                setOnCompletionListener {
+                    runCatching { it.release() }
+                    if (mediaPlayer === it) {
+                        mediaPlayer = null
+                    }
+                }
+                prepare()
+                start()
+            }
+        }.onSuccess {
+            mediaPlayer = player
+        }.onFailure {
+            runCatching { player.release() }
+            updateStatus("No se pudo reproducir el audio para $label")
         }
+    }
+
+    private fun stopAndReleaseMediaPlayer() {
+        val player = mediaPlayer ?: return
+        runCatching { player.stop() }
+        runCatching { player.release() }
+        mediaPlayer = null
     }
 
     data class BeaconCandidate(
@@ -428,6 +398,7 @@ class MainActivity : AppCompatActivity() {
         val minor: Int?,
         val rssi: Int,
         val audioResId: Int?,
+        val customAudioId: String?,
     )
 
     data class BeaconMeasurement(
@@ -443,5 +414,10 @@ class MainActivity : AppCompatActivity() {
         private const val APP_PREFS_NAME = "ble_beacon_finder_prefs"
         private const val KEY_VOLUME_BUTTONS_ENABLED = "volume_buttons_enabled"
         private const val SCAN_DURATION_MS = 3_000L
+    }
+
+    private enum class PendingPermissionAction {
+        NONE,
+        SCAN,
     }
 }

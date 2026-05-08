@@ -6,6 +6,7 @@ import android.bluetooth.le.ScanRecord
 import org.json.JSONArray
 import org.json.JSONObject
 import java.nio.ByteBuffer
+import java.io.File
 import java.util.Locale
 import java.util.UUID
 
@@ -13,6 +14,7 @@ data class BeaconDefinition(
     val name: String,
     val uuid: String,
     val audioResId: Int? = null,
+    val customAudioId: String? = null,
 )
 
 data class IBeaconData(
@@ -24,18 +26,12 @@ data class IBeaconData(
 object BeaconCatalog {
     private const val PREFS_NAME = "beacon_catalog"
     private const val KEY_KNOWN_BEACONS = "known_beacons"
+    private const val KEY_DEFAULTS_VERSION = "defaults_version"
+    private const val CURRENT_DEFAULTS_VERSION = 2
 
     val NO_BEACON_AUDIO_RES_ID = R.raw.nobeacon
 
-    val availableAudioOptions =
-        listOf(
-            BeaconAudioOption(null, "Sin audio"),
-            BeaconAudioOption(R.raw.cocina, "Cocina"),
-            BeaconAudioOption(R.raw.pieza, "Pieza"),
-            BeaconAudioOption(R.raw.living, "Living"),
-        )
-
-    private val defaultKnownBeacons =
+    private val defaultKnownBeaconsV1 =
         listOf(
             BeaconDefinition(
                 name = "Baliza A - Cocina",
@@ -52,7 +48,27 @@ object BeaconCatalog {
                 uuid = "9F8E7D6C-5B4A-4321-9876-ABCDEF123456",
                 audioResId = R.raw.living,
             ),
-        ).map { beacon ->
+        )
+
+    private val defaultKnownBeaconsV2 =
+        listOf(
+            BeaconDefinition(
+                name = "Baliza D - Infierno",
+                uuid = "A2B3C4D5-E6F7-4889-ABCD-1234567890AB",
+            ),
+            BeaconDefinition(
+                name = "Baliza E - Cuartito de los Cachibaches",
+                uuid = "A1B2C3D4-E5F6-4789-ABCD-34567890ABCD",
+            ),
+        )
+
+    private val defaultKnownBeacons =
+        (defaultKnownBeaconsV1 + defaultKnownBeaconsV2).map { beacon ->
+            beacon.copy(uuid = beacon.uuid.lowercase(Locale.US))
+        }
+
+    private val newDefaultKnownBeacons =
+        defaultKnownBeaconsV2.map { beacon ->
             beacon.copy(uuid = beacon.uuid.lowercase(Locale.US))
         }
 
@@ -62,14 +78,16 @@ object BeaconCatalog {
 
         return runCatching {
             val jsonArray = JSONArray(storedCatalog)
-            List(jsonArray.length()) { index ->
+            val storedBeacons = List(jsonArray.length()) { index ->
                 val jsonObject = jsonArray.getJSONObject(index)
                 BeaconDefinition(
                     name = jsonObject.getString("name"),
                     uuid = normalizeUuid(jsonObject.getString("uuid")),
                     audioResId = jsonObject.takeIf { it.has("audioResId") && !it.isNull("audioResId") }?.getInt("audioResId"),
+                    customAudioId = jsonObject.takeIf { it.has("customAudioId") && !it.isNull("customAudioId") }?.getString("customAudioId"),
                 )
             }
+            migrateDefaultBeaconsIfNeeded(context, storedBeacons)
         }.getOrElse {
             defaultKnownBeacons
         }
@@ -93,6 +111,11 @@ object BeaconCatalog {
                             } else {
                                 put("audioResId", JSONObject.NULL)
                             }
+                            if (beacon.customAudioId != null) {
+                                put("customAudioId", beacon.customAudioId)
+                            } else {
+                                put("customAudioId", JSONObject.NULL)
+                            }
                         }
                     )
                 }
@@ -102,7 +125,27 @@ object BeaconCatalog {
             .getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
             .edit()
             .putString(KEY_KNOWN_BEACONS, jsonArray.toString())
+            .putInt(KEY_DEFAULTS_VERSION, CURRENT_DEFAULTS_VERSION)
             .apply()
+    }
+
+    private fun migrateDefaultBeaconsIfNeeded(
+        context: Context,
+        storedBeacons: List<BeaconDefinition>,
+    ): List<BeaconDefinition> {
+        val preferences = context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
+        val defaultsVersion = preferences.getInt(KEY_DEFAULTS_VERSION, 1)
+        if (defaultsVersion >= CURRENT_DEFAULTS_VERSION) {
+            return storedBeacons
+        }
+
+        val mergedBeacons =
+            storedBeacons + newDefaultKnownBeacons.filterNot { defaultBeacon ->
+                storedBeacons.any { storedBeacon -> storedBeacon.uuid == defaultBeacon.uuid }
+            }
+
+        saveKnownBeacons(context, mergedBeacons)
+        return mergedBeacons
     }
 
     fun findKnownBeacon(context: Context, uuid: String): BeaconDefinition? {
@@ -110,8 +153,31 @@ object BeaconCatalog {
         return getKnownBeacons(context).firstOrNull { it.uuid == normalizedUuid }
     }
 
-    fun audioLabelFor(audioResId: Int?): String {
-        return availableAudioOptions.firstOrNull { it.audioResId == audioResId }?.label ?: "Sin audio"
+    fun availableAudioOptions(context: Context): List<BeaconAudioOption> {
+        val builtInOptions =
+            listOf(
+                BeaconAudioOption(id = "none", builtInResId = null, customAudioId = null, label = "Sin audio"),
+                BeaconAudioOption(id = "builtin_cocina", builtInResId = R.raw.cocina, customAudioId = null, label = "Cocina"),
+                BeaconAudioOption(id = "builtin_pieza", builtInResId = R.raw.pieza, customAudioId = null, label = "Pieza"),
+                BeaconAudioOption(id = "builtin_living", builtInResId = R.raw.living, customAudioId = null, label = "Living"),
+            )
+        val customOptions =
+            CustomAudioStore.getCustomAudios(context).map { audio ->
+                BeaconAudioOption(
+                    id = "custom_${audio.id}",
+                    builtInResId = null,
+                    customAudioId = audio.id,
+                    label = "Personalizado: ${audio.name}",
+                )
+            }
+
+        return builtInOptions + customOptions
+    }
+
+    fun audioLabelFor(context: Context, audioResId: Int?, customAudioId: String?): String {
+        return availableAudioOptions(context)
+            .firstOrNull { it.builtInResId == audioResId && it.customAudioId == customAudioId }
+            ?.label ?: "Sin audio"
     }
 
     fun normalizeUuid(uuid: String): String {
@@ -120,9 +186,106 @@ object BeaconCatalog {
 }
 
 data class BeaconAudioOption(
-    val audioResId: Int?,
+    val id: String,
+    val builtInResId: Int?,
+    val customAudioId: String?,
     val label: String,
 )
+
+data class CustomAudioDefinition(
+    val id: String,
+    val name: String,
+    val fileName: String,
+)
+
+object CustomAudioStore {
+    private const val PREFS_NAME = "custom_audio_catalog"
+    private const val KEY_CUSTOM_AUDIOS = "custom_audios"
+    private const val DIRECTORY_NAME = "custom_audio"
+
+    fun getCustomAudios(context: Context): List<CustomAudioDefinition> {
+        val storedCatalog =
+            context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
+                .getString(KEY_CUSTOM_AUDIOS, null) ?: return emptyList()
+
+        return runCatching {
+            val jsonArray = JSONArray(storedCatalog)
+            List(jsonArray.length()) { index ->
+                val jsonObject = jsonArray.getJSONObject(index)
+                CustomAudioDefinition(
+                    id = jsonObject.getString("id"),
+                    name = jsonObject.getString("name"),
+                    fileName = jsonObject.getString("fileName"),
+                )
+            }
+        }.getOrDefault(emptyList())
+    }
+
+    fun addCustomAudio(context: Context, audio: CustomAudioDefinition) {
+        val updatedAudios = getCustomAudios(context).filterNot { it.id == audio.id } + audio
+        saveCustomAudios(context, updatedAudios.sortedBy { it.name.lowercase(Locale.US) })
+    }
+
+    fun renameCustomAudio(context: Context, audioId: String, newName: String) {
+        val updatedAudios =
+            getCustomAudios(context).map { audio ->
+                if (audio.id == audioId) audio.copy(name = newName) else audio
+            }
+        saveCustomAudios(context, updatedAudios.sortedBy { it.name.lowercase(Locale.US) })
+    }
+
+    fun deleteCustomAudio(context: Context, audioId: String) {
+        val currentAudios = getCustomAudios(context)
+        val targetAudio = currentAudios.firstOrNull { it.id == audioId } ?: return
+
+        File(directory(context), targetAudio.fileName).delete()
+        saveCustomAudios(context, currentAudios.filterNot { it.id == audioId })
+
+        val updatedBeacons =
+            BeaconCatalog.getKnownBeacons(context).map { beacon ->
+                if (beacon.customAudioId == audioId) {
+                    beacon.copy(customAudioId = null, audioResId = null)
+                } else {
+                    beacon
+                }
+            }
+        BeaconCatalog.saveKnownBeacons(context, updatedBeacons)
+    }
+
+    fun resolveAudioFile(context: Context, customAudioId: String): File? {
+        val audio = getCustomAudios(context).firstOrNull { it.id == customAudioId } ?: return null
+        val audioFile = File(directory(context), audio.fileName)
+        return audioFile.takeIf(File::exists)
+    }
+
+    fun newAudioFile(context: Context): File {
+        return File(directory(context), "${UUID.randomUUID()}.m4a")
+    }
+
+    private fun saveCustomAudios(context: Context, audios: List<CustomAudioDefinition>) {
+        val jsonArray =
+            JSONArray().apply {
+                audios.forEach { audio ->
+                    put(
+                        JSONObject().apply {
+                            put("id", audio.id)
+                            put("name", audio.name)
+                            put("fileName", audio.fileName)
+                        }
+                    )
+                }
+            }
+
+        context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
+            .edit()
+            .putString(KEY_CUSTOM_AUDIOS, jsonArray.toString())
+            .apply()
+    }
+
+    private fun directory(context: Context): File {
+        return File(context.filesDir, DIRECTORY_NAME).apply { mkdirs() }
+    }
+}
 
 object BeaconParser {
     private const val APPLE_COMPANY_ID = 0x004C
