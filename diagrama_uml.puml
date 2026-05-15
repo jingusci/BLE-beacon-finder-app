@@ -1,0 +1,368 @@
+@startuml BLEBeaconFinder
+title BLE Beacon Finder - Diagrama UML del proyecto
+
+skinparam classAttributeIconSize 0
+skinparam shadowing false
+skinparam packageStyle rectangle
+skinparam linetype ortho
+
+package "Android app\ncom.example.blebeaconfinder" as AndroidApp {
+  abstract class AppCompatActivity <<AndroidX>>
+  abstract class BaseAdapter <<Android>>
+
+  class MainActivity {
+    - statusText: TextView
+    - actionButton: Button
+    - viewBeaconsButton: Button
+    - manageKnownBeaconsButton: Button
+    - volumeButtonsSwitch: MaterialSwitch
+    - mainHandler: Handler
+    - scanMeasurements: LinkedHashMap<String, BeaconMeasurement>
+    - isScanning: Boolean
+    - mediaPlayer: MediaPlayer?
+    - pendingActionAfterPermissions: PendingPermissionAction
+    - bluetoothAdapter: BluetoothAdapter?
+    + onCreate(savedInstanceState: Bundle?)
+    + onKeyDown(keyCode: Int, event: KeyEvent?): Boolean
+    + onDestroy()
+    - triggerNearestBeaconSearch()
+    - ensureBluetoothAndPermissions()
+    - startNearestBeaconScan()
+    - finishNearestBeaconScan()
+    - registerCandidate(result: ScanResult)
+    - buildBeaconCandidate(scanRecord: ScanRecord?, address: String, rssi: Int): BeaconCandidate?
+    - playBuiltInAudio(audioResId: Int, label: String)
+    - playCustomAudio(customAudioId: String, label: String)
+  }
+
+  class BeaconScannerActivity {
+    - statusText: TextView
+    - beaconListView: ListView
+    - backButton: Button
+    - observedDevices: LinkedHashMap<String, ObservedDevice>
+    - isScanning: Boolean
+    - bluetoothAdapter: BluetoothAdapter?
+    + onCreate(savedInstanceState: Bundle?)
+    + onStart()
+    + onStop()
+    - ensureBluetoothAndPermissions()
+    - startMonitoring()
+    - stopMonitoring()
+    - registerObservedDevice(result: ScanResult)
+    - renderObservedDevices()
+    - showObservedBeaconEditor(device: ObservedDevice)
+    - validateBeaconInput(name: String, rawUuid: String, originalUuid: String?): String?
+  }
+
+  class KnownBeaconsActivity {
+    - emptyText: TextView
+    - beaconListView: ListView
+    - addBeaconButton: MaterialButton
+    - manageCustomAudioButton: MaterialButton
+    - backButton: MaterialButton
+    - knownBeacons: List<BeaconDefinition>
+    + onCreate(savedInstanceState: Bundle?)
+    + onResume()
+    - renderKnownBeacons()
+    - showBeaconEditor(existingBeacon: BeaconDefinition?)
+    - validateBeaconInput(name: String, rawUuid: String, originalUuid: String?): String?
+    - confirmDelete(beacon: BeaconDefinition)
+  }
+
+  class CustomAudioActivity {
+    - backButton: MaterialButton
+    - recordButton: MaterialButton
+    - saveButton: MaterialButton
+    - nameInput: TextInputEditText
+    - statusText: TextView
+    - audioListView: ListView
+    - mediaRecorder: MediaRecorder?
+    - pendingAudioFile: File?
+    - isRecording: Boolean
+    - hasRecordedAudio: Boolean
+    + onCreate(savedInstanceState: Bundle?)
+    + onStop()
+    + onDestroy()
+    - ensureMicrophonePermissionAndRecord()
+    - startRecording()
+    - stopRecording()
+    - saveRecordedAudio()
+    - renderCustomAudios()
+    - showAudioActionsDialog(audio: CustomAudioDefinition)
+  }
+
+  object BeaconCatalog {
+    - PREFS_NAME: String
+    - KEY_KNOWN_BEACONS: String
+    + NO_BEACON_AUDIO_RES_ID: Int
+    - defaultKnownBeacons: List<BeaconDefinition>
+    + getKnownBeacons(context: Context): List<BeaconDefinition>
+    + saveKnownBeacons(context: Context, beacons: List<BeaconDefinition>)
+    + findKnownBeacon(context: Context, uuid: String): BeaconDefinition?
+    + availableAudioOptions(context: Context): List<BeaconAudioOption>
+    + audioLabelFor(context: Context, audioResId: Int?, customAudioId: String?): String
+    + normalizeUuid(uuid: String): String
+  }
+
+  object CustomAudioStore {
+    - PREFS_NAME: String
+    - KEY_CUSTOM_AUDIOS: String
+    - DIRECTORY_NAME: String
+    + getCustomAudios(context: Context): List<CustomAudioDefinition>
+    + addCustomAudio(context: Context, audio: CustomAudioDefinition)
+    + renameCustomAudio(context: Context, audioId: String, newName: String)
+    + deleteCustomAudio(context: Context, audioId: String)
+    + resolveAudioFile(context: Context, customAudioId: String): File?
+    + newAudioFile(context: Context): File
+    - saveCustomAudios(context: Context, audios: List<CustomAudioDefinition>)
+    - directory(context: Context): File
+  }
+
+  object BeaconParser {
+    - APPLE_COMPANY_ID: Int
+    - IBEACON_PREFIX_LENGTH: Int
+    - UUID_BYTE_LENGTH: Int
+    - IBEACON_TOTAL_LENGTH: Int
+    + extractIBeacon(scanRecord: ScanRecord): IBeaconData?
+    - readUnsignedShort(data: ByteArray, offset: Int): Int
+  }
+
+  object BeaconScanConfig {
+    + scanSettings(): ScanSettings
+  }
+
+  class BeaconDefinition <<data>> {
+    + name: String
+    + uuid: String
+    + audioResId: Int?
+    + customAudioId: String?
+  }
+
+  class IBeaconData <<data>> {
+    + uuid: String
+    + major: Int
+    + minor: Int
+  }
+
+  class BeaconAudioOption <<data>> {
+    + id: String
+    + builtInResId: Int?
+    + customAudioId: String?
+    + label: String
+  }
+
+  class CustomAudioDefinition <<data>> {
+    + id: String
+    + name: String
+    + fileName: String
+  }
+
+  class "MainActivity.BeaconCandidate" as BeaconCandidate <<data>> {
+    + name: String
+    + address: String
+    + uuid: String
+    + major: Int?
+    + minor: Int?
+    + rssi: Int
+    + audioResId: Int?
+    + customAudioId: String?
+  }
+
+  class "MainActivity.BeaconMeasurement" as BeaconMeasurement <<data>> {
+    + beacon: BeaconCandidate
+    + totalRssi: Long
+    + sampleCount: Int
+    + averageRssi: Int
+  }
+
+  enum "MainActivity.PendingPermissionAction" as PendingPermissionAction {
+    NONE
+    SCAN
+  }
+
+  class "BeaconScannerActivity.ObservedDevice" as ObservedDevice <<data>> {
+    + address: String
+    + name: String
+    + rssi: Int
+    + lastSeenAt: Long
+    + beaconName: String?
+    + beaconUuid: String?
+    + iBeacon: IBeaconData
+    + displayName: String
+  }
+
+  class "BeaconScannerActivity.ObservedBeaconsAdapter" as ObservedBeaconsAdapter {
+    - devices: List<ObservedDevice>
+    + getCount(): Int
+    + getItem(position: Int): ObservedDevice
+    + getItemId(position: Int): Long
+    + getView(position: Int, convertView: View?, parent: ViewGroup): View
+  }
+
+  class "KnownBeaconsActivity.KnownBeaconsAdapter" as KnownBeaconsAdapter {
+    + getCount(): Int
+    + getItem(position: Int): BeaconDefinition
+    + getItemId(position: Int): Long
+    + getView(position: Int, convertView: View?, parent: ViewGroup): View
+  }
+
+  class "CustomAudioActivity.CustomAudioAdapter" as CustomAudioAdapter {
+    - audios: List<CustomAudioDefinition>
+    + getCount(): Int
+    + getItem(position: Int): CustomAudioDefinition
+    + getItemId(position: Int): Long
+    + getView(position: Int, convertView: View?, parent: ViewGroup): View
+  }
+}
+
+package "Recursos Android" as Resources {
+  class "Layouts XML" as Layouts <<resource>>
+  class "Raw audio\nres/raw" as RawAudio <<resource>>
+  class "Values/Theme" as Values <<resource>>
+}
+
+package "Almacenamiento local" as Storage {
+  class "SharedPreferences\nbeacon_catalog" as BeaconPrefs <<storage>>
+  class "SharedPreferences\ncustom_audio_catalog" as AudioPrefs <<storage>>
+  class "files/custom_audio" as CustomAudioFiles <<storage>>
+}
+
+package "BLE beacons ESP32-C6\nArduino/NimBLE" as Esp32 {
+  class "BLE_Beacon_Cocina" as BeaconCocina <<ESP32Beacon>>
+  class "BLE_Beacon_Pieza" as BeaconPieza <<ESP32Beacon>>
+  class "BLE_Beacon_Living" as BeaconLiving <<ESP32Beacon>>
+  class "BLE_Beacon_CuartitoCachibaches" as BeaconCuartito <<ESP32Beacon>>
+  class "BLE_Beacon_Infierno" as BeaconInfierno <<ESP32Beacon>>
+
+  class "NimBLEDevice/NimBLEAdvertising" as NimBLE <<library>>
+}
+
+package "Android framework / librerias" as Framework {
+  class "BluetoothLeScanner" as BluetoothLeScanner <<Android>>
+  class "ScanCallback/ScanResult/ScanRecord" as ScanApi <<Android>>
+  class "MediaPlayer" as MediaPlayer <<Android>>
+  class "MediaRecorder" as MediaRecorder <<Android>>
+  class "ActivityResultContracts" as ActivityResults <<AndroidX>>
+  class "Material Components" as MaterialComponents <<Material>>
+}
+
+MainActivity --|> AppCompatActivity
+BeaconScannerActivity --|> AppCompatActivity
+KnownBeaconsActivity --|> AppCompatActivity
+CustomAudioActivity --|> AppCompatActivity
+ObservedBeaconsAdapter --|> BaseAdapter
+KnownBeaconsAdapter --|> BaseAdapter
+CustomAudioAdapter --|> BaseAdapter
+
+MainActivity *-- BeaconMeasurement
+BeaconMeasurement *-- BeaconCandidate
+MainActivity --> PendingPermissionAction
+BeaconScannerActivity *-- ObservedDevice
+BeaconScannerActivity *-- ObservedBeaconsAdapter
+KnownBeaconsActivity *-- KnownBeaconsAdapter
+CustomAudioActivity *-- CustomAudioAdapter
+
+BeaconCatalog o-- BeaconDefinition
+BeaconCatalog --> BeaconAudioOption
+BeaconCatalog --> CustomAudioStore : lista audios personalizados
+CustomAudioStore o-- CustomAudioDefinition
+CustomAudioStore --> BeaconCatalog : limpia referencias al borrar audio
+BeaconParser --> IBeaconData : crea
+BeaconParser --> BeaconCatalog : normalizeUuid()
+BeaconScanConfig --> BluetoothLeScanner : ScanSettings
+
+MainActivity --> BeaconScanConfig : configura escaneo
+MainActivity --> BeaconParser : parsea iBeacon
+MainActivity --> BeaconCatalog : busca beacon conocido
+MainActivity --> CustomAudioStore : resuelve audio personalizado
+MainActivity --> MediaPlayer : reproduce audio
+MainActivity --> BluetoothLeScanner : startScan/stopScan
+MainActivity --> ScanApi : recibe resultados BLE
+MainActivity --> ActivityResults : permisos y Bluetooth
+
+BeaconScannerActivity --> BeaconScanConfig : configura monitoreo
+BeaconScannerActivity --> BeaconParser : parsea iBeacon
+BeaconScannerActivity --> BeaconCatalog : consulta/guarda conocidos
+BeaconScannerActivity --> BluetoothLeScanner : monitorea BLE
+BeaconScannerActivity --> ScanApi : recibe resultados BLE
+BeaconScannerActivity --> ActivityResults : permisos y Bluetooth
+BeaconScannerActivity --> ObservedDevice
+
+KnownBeaconsActivity --> BeaconCatalog : CRUD beacons conocidos
+KnownBeaconsActivity --> BeaconAudioOption : selecciona audio
+KnownBeaconsActivity --> CustomAudioActivity : abre gestion de audio
+
+CustomAudioActivity --> CustomAudioStore : CRUD audios personalizados
+CustomAudioActivity --> CustomAudioDefinition
+CustomAudioActivity --> MediaRecorder : graba audio
+
+BeaconCatalog --> BeaconPrefs : persiste JSON
+CustomAudioStore --> AudioPrefs : persiste JSON
+CustomAudioStore --> CustomAudioFiles : guarda/elimina .m4a
+BeaconCatalog --> RawAudio : audios integrados
+MainActivity --> RawAudio : nobeacon y audios integrados
+
+MainActivity ..> Layouts : usa activity_main
+BeaconScannerActivity ..> Layouts : usa scanner/items/dialog
+KnownBeaconsActivity ..> Layouts : usa known/items/dialog
+CustomAudioActivity ..> Layouts : usa custom_audio/items
+AndroidApp ..> Values : strings, colores, dimensiones, tema
+AndroidApp ..> MaterialComponents
+
+note right of Layouts
+activity_main.xml
+activity_beacon_scanner.xml
+activity_known_beacons.xml
+activity_custom_audio.xml
+dialog_edit_beacon.xml
+item_observed_beacon.xml
+item_known_beacon.xml
+item_custom_audio.xml
+end note
+
+note right of RawAudio
+cocina.ogg
+pieza.ogg
+living.ogg
+cuartito_cachibaches.ogg
+nobeacon.ogg
+otros mp3/ogg
+end note
+
+BeaconCocina --> NimBLE
+BeaconPieza --> NimBLE
+BeaconLiving --> NimBLE
+BeaconCuartito --> NimBLE
+BeaconInfierno --> NimBLE
+NimBLE --> ScanApi : anuncios BLE iBeacon\nApple company id 0x004C
+ScanApi --> BeaconParser : manufacturer data
+
+note right of BeaconInfierno
+Cocina: UUID B9407F30..., major 1, minor 2
+Pieza: UUID A1B2C3D4...1234..., major 1, minor 1
+Living: UUID 9F8E7D6C..., major 1, minor 3
+Cuartito: UUID A1B2C3D4...3456..., major 1, minor 10
+Infierno: UUID A2B3C4D5..., major 1, minor 4
+end note
+
+note right of BeaconParser
+Extrae UUID, major y minor desde
+manufacturer data iBeacon:
+0x02 0x15 + UUID(16) + major + minor + tx power.
+end note
+
+note bottom of BeaconCatalog
+Catalogo inicial:
+Cocina, Pieza, Living,
+Cuartito Cachibaches e Infierno.
+Tambien permite altas/ediciones
+persistidas en SharedPreferences.
+end note
+
+note bottom of MainActivity
+Escanea durante 3 segundos,
+promedia RSSI por beacon y reproduce
+el audio del beacon mas cercano.
+end note
+
+@enduml

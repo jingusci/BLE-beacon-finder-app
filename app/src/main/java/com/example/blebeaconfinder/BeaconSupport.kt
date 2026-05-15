@@ -26,49 +26,36 @@ data class IBeaconData(
 object BeaconCatalog {
     private const val PREFS_NAME = "beacon_catalog"
     private const val KEY_KNOWN_BEACONS = "known_beacons"
-    private const val KEY_DEFAULTS_VERSION = "defaults_version"
-    private const val CURRENT_DEFAULTS_VERSION = 2
 
     val NO_BEACON_AUDIO_RES_ID = R.raw.nobeacon
 
-    private val defaultKnownBeaconsV1 =
+    private val defaultKnownBeacons =
         listOf(
             BeaconDefinition(
-                name = "Baliza A - Cocina",
+                name = "Cocina",
                 uuid = "B9407F30-F5F8-466E-AFF9-25556B57FE6D",
                 audioResId = R.raw.cocina,
             ),
             BeaconDefinition(
-                name = "Baliza B - Pieza",
+                name = "Pieza",
                 uuid = "A1B2C3D4-E5F6-4789-ABCD-1234567890AB",
                 audioResId = R.raw.pieza,
             ),
             BeaconDefinition(
-                name = "Baliza C - Living",
+                name = "Living",
                 uuid = "9F8E7D6C-5B4A-4321-9876-ABCDEF123456",
                 audioResId = R.raw.living,
             ),
-        )
-
-    private val defaultKnownBeaconsV2 =
-        listOf(
             BeaconDefinition(
-                name = "Baliza D - Infierno",
+                name = "Cuartito Cachibaches",
+                uuid = "A1B2C3D4-E5F6-4789-ABCD-34567890ABCD",
+                audioResId = R.raw.cuartito_cachibaches,
+            ),
+            BeaconDefinition(
+                name = "Infierno",
                 uuid = "A2B3C4D5-E6F7-4889-ABCD-1234567890AB",
             ),
-            BeaconDefinition(
-                name = "Baliza E - Cuartito de los Cachibaches",
-                uuid = "A1B2C3D4-E5F6-4789-ABCD-34567890ABCD",
-            ),
-        )
-
-    private val defaultKnownBeacons =
-        (defaultKnownBeaconsV1 + defaultKnownBeaconsV2).map { beacon ->
-            beacon.copy(uuid = beacon.uuid.lowercase(Locale.US))
-        }
-
-    private val newDefaultKnownBeacons =
-        defaultKnownBeaconsV2.map { beacon ->
+        ).map { beacon ->
             beacon.copy(uuid = beacon.uuid.lowercase(Locale.US))
         }
 
@@ -78,7 +65,7 @@ object BeaconCatalog {
 
         return runCatching {
             val jsonArray = JSONArray(storedCatalog)
-            val storedBeacons = List(jsonArray.length()) { index ->
+            List(jsonArray.length()) { index ->
                 val jsonObject = jsonArray.getJSONObject(index)
                 BeaconDefinition(
                     name = jsonObject.getString("name"),
@@ -87,7 +74,6 @@ object BeaconCatalog {
                     customAudioId = jsonObject.takeIf { it.has("customAudioId") && !it.isNull("customAudioId") }?.getString("customAudioId"),
                 )
             }
-            migrateDefaultBeaconsIfNeeded(context, storedBeacons)
         }.getOrElse {
             defaultKnownBeacons
         }
@@ -125,27 +111,7 @@ object BeaconCatalog {
             .getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
             .edit()
             .putString(KEY_KNOWN_BEACONS, jsonArray.toString())
-            .putInt(KEY_DEFAULTS_VERSION, CURRENT_DEFAULTS_VERSION)
             .apply()
-    }
-
-    private fun migrateDefaultBeaconsIfNeeded(
-        context: Context,
-        storedBeacons: List<BeaconDefinition>,
-    ): List<BeaconDefinition> {
-        val preferences = context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
-        val defaultsVersion = preferences.getInt(KEY_DEFAULTS_VERSION, 1)
-        if (defaultsVersion >= CURRENT_DEFAULTS_VERSION) {
-            return storedBeacons
-        }
-
-        val mergedBeacons =
-            storedBeacons + newDefaultKnownBeacons.filterNot { defaultBeacon ->
-                storedBeacons.any { storedBeacon -> storedBeacon.uuid == defaultBeacon.uuid }
-            }
-
-        saveKnownBeacons(context, mergedBeacons)
-        return mergedBeacons
     }
 
     fun findKnownBeacon(context: Context, uuid: String): BeaconDefinition? {
