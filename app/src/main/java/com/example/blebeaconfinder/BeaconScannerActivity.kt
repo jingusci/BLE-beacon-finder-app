@@ -10,9 +10,6 @@ import android.bluetooth.le.ScanResult
 import android.content.Context
 import android.content.Intent
 import android.content.pm.PackageManager
-import android.media.AudioAttributes
-import android.media.AudioManager
-import android.media.SoundPool
 import android.os.Build
 import android.os.Bundle
 import android.os.Handler
@@ -40,24 +37,10 @@ class BeaconScannerActivity : AppCompatActivity() {
     private lateinit var statusText: TextView
     private lateinit var beaconListView: ListView
     private lateinit var backButton: Button
-    private lateinit var testCocinaButton: Button
-    private lateinit var testPiezaButton: Button
-    private lateinit var testLivingButton: Button
-    private lateinit var testNoBeaconButton: Button
 
     private val mainHandler = Handler(Looper.getMainLooper())
     private val observedDevices = linkedMapOf<String, ObservedDevice>()
     private var isScanning = false
-    private lateinit var soundPool: SoundPool
-    private val loadedAudioResIds = mutableSetOf<Int>()
-    private val soundIdsByResId = mutableMapOf<Int, Int>()
-    private var pendingAudioResId: Int? = null
-    private var pendingAudioLabel: String? = null
-    private var activeStreamId: Int? = null
-
-    private val audioManager: AudioManager by lazy {
-        getSystemService(Context.AUDIO_SERVICE) as AudioManager
-    }
 
     private val bluetoothAdapter: BluetoothAdapter? by lazy {
         val bluetoothManager = getSystemService(Context.BLUETOOTH_SERVICE) as BluetoothManager
@@ -112,31 +95,13 @@ class BeaconScannerActivity : AppCompatActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_beacon_scanner)
-        volumeControlStream = AudioManager.STREAM_MUSIC
-        initializeSoundPool()
 
         statusText = findViewById(R.id.scannerStatusText)
         beaconListView = findViewById(R.id.beaconListView)
         backButton = findViewById(R.id.backButton)
-        testCocinaButton = findViewById(R.id.testCocinaButton)
-        testPiezaButton = findViewById(R.id.testPiezaButton)
-        testLivingButton = findViewById(R.id.testLivingButton)
-        testNoBeaconButton = findViewById(R.id.testNoBeaconButton)
 
         backButton.setOnClickListener {
             finish()
-        }
-        testCocinaButton.setOnClickListener {
-            playAudioResource(R.raw.cocina, "Cocina")
-        }
-        testPiezaButton.setOnClickListener {
-            playAudioResource(R.raw.pieza, "Pieza")
-        }
-        testLivingButton.setOnClickListener {
-            playAudioResource(R.raw.living, "Living")
-        }
-        testNoBeaconButton.setOnClickListener {
-            playAudioResource(R.raw.nobeacon, "sin balizas conocidas")
         }
         beaconListView.setOnItemClickListener { _, _, position, _ ->
             observedDevices.values
@@ -157,13 +122,18 @@ class BeaconScannerActivity : AppCompatActivity() {
     }
 
     override fun onDestroy() {
-        releaseSoundPool()
         super.onDestroy()
     }
 
     private fun ensureBluetoothAndPermissions() {
         if (!packageManager.hasSystemFeature(PackageManager.FEATURE_BLUETOOTH_LE)) {
             updateStatus("Este dispositivo no soporta Bluetooth Low Energy.")
+            return
+        }
+
+        val missingPermissions = requiredPermissions().filterNot(::hasPermission)
+        if (missingPermissions.isNotEmpty()) {
+            permissionLauncher.launch(missingPermissions.toTypedArray())
             return
         }
 
@@ -176,12 +146,6 @@ class BeaconScannerActivity : AppCompatActivity() {
         if (!adapter.isEnabled) {
             val enableIntent = Intent(BluetoothAdapter.ACTION_REQUEST_ENABLE)
             enableBluetoothLauncher.launch(enableIntent)
-            return
-        }
-
-        val missingPermissions = requiredPermissions().filterNot(::hasPermission)
-        if (missingPermissions.isNotEmpty()) {
-            permissionLauncher.launch(missingPermissions.toTypedArray())
             return
         }
 
@@ -305,99 +269,19 @@ class BeaconScannerActivity : AppCompatActivity() {
         Toast.makeText(this, message, Toast.LENGTH_SHORT).show()
     }
 
-    private fun initializeSoundPool() {
-        soundPool =
-            SoundPool.Builder()
-                .setMaxStreams(1)
-                .setAudioAttributes(
-                    AudioAttributes.Builder()
-                        .setUsage(AudioAttributes.USAGE_ASSISTANCE_SONIFICATION)
-                        .setContentType(AudioAttributes.CONTENT_TYPE_SPEECH)
-                        .build()
-                )
-                .build()
-
-        soundPool.setOnLoadCompleteListener { _, sampleId, status ->
-            if (status != 0) {
-                updateStatus("No se pudo cargar un audio de la app.")
-                return@setOnLoadCompleteListener
-            }
-
-            val loadedResId = soundIdsByResId.entries.firstOrNull { it.value == sampleId }?.key ?: return@setOnLoadCompleteListener
-            loadedAudioResIds += loadedResId
-
-            if (pendingAudioResId == loadedResId) {
-                playLoadedSound(loadedResId, pendingAudioLabel ?: "audio")
-            }
-        }
-
-        preloadAudioResources()
-    }
-
-    private fun preloadAudioResources() {
-        val audioResIds =
-            buildList {
-                add(BeaconCatalog.NO_BEACON_AUDIO_RES_ID)
-                addAll(BeaconCatalog.getKnownBeacons(this@BeaconScannerActivity).mapNotNull { it.audioResId })
-            }.distinct()
-
-        audioResIds.forEach { audioResId ->
-            if (soundIdsByResId.containsKey(audioResId).not()) {
-                soundIdsByResId[audioResId] = soundPool.load(this, audioResId, 1)
-            }
-        }
-    }
-
-    private fun setMediaVolumeToMax() {
-        val maxVolume = audioManager.getStreamMaxVolume(AudioManager.STREAM_MUSIC)
-        audioManager.setStreamVolume(AudioManager.STREAM_MUSIC, maxVolume, 0)
-    }
-
-    private fun playAudioResource(audioResId: Int, label: String) {
-        setMediaVolumeToMax()
-
-        if (loadedAudioResIds.contains(audioResId)) {
-            playLoadedSound(audioResId, label)
-        } else {
-            pendingAudioResId = audioResId
-            pendingAudioLabel = label
-        }
-    }
-
-    private fun playLoadedSound(audioResId: Int, label: String) {
-        val soundId = soundIdsByResId[audioResId]
-        if (soundId == null) {
-            updateStatus("No se encontro el audio para $label")
-            return
-        }
-
-        activeStreamId?.let(soundPool::stop)
-        val streamId = soundPool.play(soundId, 1f, 1f, 1, 0, 1f)
-        if (streamId == 0) {
-            updateStatus("No se pudo reproducir el audio para $label")
-            return
-        }
-
-        activeStreamId = streamId
-        pendingAudioResId = null
-        pendingAudioLabel = null
-    }
-
-    private fun releaseSoundPool() {
-        if (::soundPool.isInitialized) {
-            soundPool.release()
-        }
-    }
-
     private fun showObservedBeaconEditor(device: ObservedDevice) {
         val existingBeacon = BeaconCatalog.findKnownBeacon(this, device.iBeacon.uuid)
         val dialogView = layoutInflater.inflate(R.layout.dialog_edit_beacon, null)
         val nameInput = dialogView.findViewById<TextInputEditText>(R.id.beaconNameInput)
         val uuidInput = dialogView.findViewById<TextInputEditText>(R.id.beaconUuidInput)
         val audioInput = dialogView.findViewById<MaterialAutoCompleteTextView>(R.id.beaconAudioInput)
-        val audioOptions = BeaconCatalog.availableAudioOptions
+        val audioOptions = BeaconCatalog.availableAudioOptions(this)
         val audioLabels = audioOptions.map(BeaconAudioOption::label)
-        val initialAudioIndex = audioOptions.indexOfFirst { it.audioResId == existingBeacon?.audioResId }.coerceAtLeast(0)
+        val initialAudioIndex =
+            audioOptions.indexOfFirst {
+                it.builtInResId == existingBeacon?.audioResId &&
+                    it.customAudioId == existingBeacon?.customAudioId
+            }.coerceAtLeast(0)
 
         audioInput.setAdapter(ArrayAdapter(this, android.R.layout.simple_list_item_1, audioLabels))
         audioInput.setText(audioLabels[initialAudioIndex], false)
@@ -428,7 +312,8 @@ class BeaconScannerActivity : AppCompatActivity() {
                     BeaconDefinition(
                         name = name,
                         uuid = BeaconCatalog.normalizeUuid(rawUuid),
-                        audioResId = selectedAudio.audioResId,
+                        audioResId = selectedAudio.builtInResId,
+                        customAudioId = selectedAudio.customAudioId,
                     )
 
                 val existingIndex = updatedBeacons.indexOfFirst { it.uuid == existingBeacon?.uuid }
@@ -439,7 +324,6 @@ class BeaconScannerActivity : AppCompatActivity() {
                 }
 
                 BeaconCatalog.saveKnownBeacons(this, updatedBeacons)
-                preloadAudioResources()
                 renderObservedDevices()
                 dialog.dismiss()
                 Toast.makeText(this, R.string.observed_beacon_saved, Toast.LENGTH_SHORT).show()

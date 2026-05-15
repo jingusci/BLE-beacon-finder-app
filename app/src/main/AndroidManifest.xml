@@ -11,6 +11,7 @@
     <uses-permission android:name="android.permission.BLUETOOTH_SCAN" />
     <uses-permission android:name="android.permission.BLUETOOTH_CONNECT" />
     <uses-permission android:name="android.permission.MODIFY_AUDIO_SETTINGS" />
+    <uses-permission android:name="android.permission.RECORD_AUDIO" />
 
     <application
         android:allowBackup="true"
@@ -19,6 +20,9 @@
         android:theme="@style/Theme.BleBeaconFinder">
         <activity
             android:name=".KnownBeaconsActivity"
+            android:exported="false" />
+        <activity
+            android:name=".CustomAudioActivity"
             android:exported="false" />
         <activity
             android:name=".BeaconScannerActivity"
