@@ -155,12 +155,23 @@ object BeaconCatalog {
 
     fun availableAudioOptions(context: Context): List<BeaconAudioOption> {
         val builtInOptions =
-            listOf(
-                BeaconAudioOption(id = "none", builtInResId = null, customAudioId = null, label = "Sin audio"),
-                BeaconAudioOption(id = "builtin_cocina", builtInResId = R.raw.cocina, customAudioId = null, label = "Cocina"),
-                BeaconAudioOption(id = "builtin_pieza", builtInResId = R.raw.pieza, customAudioId = null, label = "Pieza"),
-                BeaconAudioOption(id = "builtin_living", builtInResId = R.raw.living, customAudioId = null, label = "Living"),
-            )
+            R.raw::class.java.fields
+                .filter { it.name != "item" && it.name != "nobeacon" }
+                .map { field ->
+                    BeaconAudioOption(
+                        id = "builtin_${field.name}",
+                        builtInResId = field.getInt(null),
+                        customAudioId = null,
+                        label = field.name
+                            .replace("_", " ")
+                            .split(" ")
+                            .joinToString(" ") { word ->
+                                word.replaceFirstChar { char -> char.uppercase() }
+                            },
+                    )
+                }
+                .sortedBy { it.label }
+                .let { listOf(BeaconAudioOption(id = "none", builtInResId = null, customAudioId = null, label = "Sin audio")) + it }
         val customOptions =
             CustomAudioStore.getCustomAudios(context).map { audio ->
                 BeaconAudioOption(
