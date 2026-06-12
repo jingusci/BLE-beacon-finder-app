@@ -25,6 +25,8 @@ La app fue probada en el contexto de una baliza emitida desde un `ESP32-C6-Zero`
 - Reconocimiento de balizas registradas en una lista conocida.
 - Detección de cualquier iBeacon válido, incluso si no fue precargado.
 - Selección automática de la baliza con mejor `RSSI` al finalizar el escaneo.
+- Administración de balizas conocidas desde la app.
+- Grabación y asignación de audios personalizados.
 
 ## Compatibilidad iBeacon
 
@@ -98,10 +100,11 @@ gradlew.bat assembleDebug
 ## Uso
 
 1. Abrir la aplicación.
-2. Presionar el botón `Buscar baliza mas cercana`.
+2. Presionar el botón `Buscar baliza mas cercana` para detectar la baliza conocida más próxima.
 3. Aceptar los permisos solicitados.
-4. Esperar la ventana de escaneo.
-5. Revisar el resultado mostrado en pantalla.
+4. Usar `Ver balizas` para monitorear iBeacons detectados, aunque todavía no estén cargados como conocidos.
+5. Usar `Gestionar conocidas` para agregar, editar o borrar UUID de balizas y asignarles audios.
+6. Usar `Audios` para grabar audios personalizados desde el teléfono.
 
 Si se detecta una baliza iBeacon, la app informa:
 
@@ -118,14 +121,51 @@ Si no encuentra ninguna baliza válida, informa que no se detectaron balizas iBe
 ```text
 .
 ├── app/
-│   ├── src/main/java/com/example/blebeaconfinder/MainActivity.kt
-│   ├── src/main/res/layout/activity_main.xml
-│   ├── src/main/res/values/strings.xml
-│   └── src/main/AndroidManifest.xml
+│   ├── build.gradle.kts
+│   ├── src/main/AndroidManifest.xml
+│   ├── src/main/java/com/example/blebeaconfinder/
+│   │   ├── MainActivity.kt
+│   │   ├── BeaconScannerActivity.kt
+│   │   ├── KnownBeaconsActivity.kt
+│   │   ├── CustomAudioActivity.kt
+│   │   └── BeaconSupport.kt
+│   └── src/main/res/
+│       ├── layout/
+│       ├── values/
+│       └── raw/
+│           ├── cocina.ogg
+│           ├── pieza.ogg
+│           ├── living.ogg
+│           ├── cuartito_cachibaches.ogg
+│           ├── nobeacon.ogg
+│           └── otros audios .mp3/.ogg
+├── BLE-beacons-for-esp32-c6/
+│   ├── BLE_Beacon_Cocina/
+│   ├── BLE_Beacon_Pieza/
+│   ├── BLE_Beacon_Living/
+│   ├── BLE_Beacon_CuartitoCachibaches/
+│   └── BLE_Beacon_Infierno/
+├── versiones_apk/
 ├── build.gradle.kts
 ├── settings.gradle.kts
 └── README.md
 ```
+
+Los audios incluidos con la app deben agregarse en `app/src/main/res/raw/`. Android exige nombres de recursos en minúsculas, sin espacios ni guiones; por ejemplo: `cocina.ogg`, `dormitorio_javi.mp3` o `cuartito_cachibaches.ogg`. Una vez agregado el archivo, se puede referenciar desde Kotlin como `R.raw.nombre_del_archivo_sin_extension`.
+
+Los UUID y la asociación inicial entre baliza, nombre y audio se cargan en `app/src/main/java/com/example/blebeaconfinder/BeaconSupport.kt`, dentro de `BeaconCatalog.defaultKnownBeacons`. Cada entrada usa `BeaconDefinition(name, uuid, audioResId, customAudioId)`. Por ejemplo:
+
+```kotlin
+BeaconDefinition(
+    name = "Cocina",
+    uuid = "B9407F30-F5F8-466E-AFF9-25556B57FE6D",
+    audioResId = R.raw.cocina,
+)
+```
+
+La app normaliza los UUID a minúsculas al guardar y comparar, pero conviene cargarlos en formato estándar `xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx`.
+
+Los audios grabados desde la propia app no se ponen en `res/raw`: se guardan automáticamente en el almacenamiento interno de la aplicación, bajo el directorio `custom_audio`, y quedan registrados por `CustomAudioStore`.
 
 ## Lógica de funcionamiento
 
@@ -149,20 +189,26 @@ En el `AndroidManifest.xml` se declaran los siguientes permisos:
 - `android.permission.ACCESS_FINE_LOCATION`
 - `android.permission.BLUETOOTH_SCAN`
 - `android.permission.BLUETOOTH_CONNECT`
+- `android.permission.MODIFY_AUDIO_SETTINGS`
+- `android.permission.RECORD_AUDIO`
 
-La app adapta el pedido de permisos en tiempo de ejecución según el nivel de API.
+La app adapta el pedido de permisos en tiempo de ejecución según el nivel de API. El permiso de micrófono se usa para grabar audios personalizados.
 
 ## Balizas conocidas
 
-El proyecto incluye una pequeña lista de balizas conocidas dentro de `MainActivity.kt` para poder asignarles nombres amigables cuando el UUID coincide.
+El proyecto incluye una lista inicial de balizas conocidas dentro de `BeaconSupport.kt`, en `BeaconCatalog.defaultKnownBeacons`, para poder asignarles nombres amigables y audios cuando el UUID coincide.
 
 Ejemplo:
 
-- `Baliza A - Cocina`
-- `Baliza B - Pieza`
-- `Baliza C - Living`
+- `Cocina`
+- `Pieza`
+- `Living`
+- `Cuartito Cachibaches`
+- `Infierno`
 
-Aunque una baliza no esté en esa lista, la app igualmente puede mostrarla si el advertising recibido cumple el formato iBeacon.
+Desde la pantalla de administración de balizas también se pueden agregar, editar o eliminar balizas conocidas sin recompilar la app. Esos cambios se guardan en `SharedPreferences` mediante `BeaconCatalog.saveKnownBeacons`.
+
+Aunque una baliza no esté en esa lista, la pantalla de monitoreo puede mostrarla si el advertising recibido cumple el formato iBeacon. La búsqueda de baliza más cercana, en cambio, usa las balizas conocidas para decidir qué nombre y qué audio reproducir.
 
 ## Caso de uso con ESP32-C6-Zero
 
@@ -180,8 +226,8 @@ Este proyecto fue pensado para integrarse con una baliza BLE emitida desde un `E
 - La app selecciona una única baliza final: la de mejor `RSSI`.
 - No mantiene historial de escaneos.
 - No calcula distancia estimada.
-- No lista todos los dispositivos BLE encontrados.
-- No implementa persistencia local ni base de datos.
+- No lista todos los dispositivos BLE encontrados: la pantalla de monitoreo se enfoca en tramas iBeacon válidas.
+- No implementa base de datos; la configuración editable se guarda en `SharedPreferences`.
 - No diferencia regiones ni geocercas de beacons.
 
 ## Posibles mejoras
@@ -189,7 +235,6 @@ Este proyecto fue pensado para integrarse con una baliza BLE emitida desde un `E
 - Mostrar una lista completa de balizas detectadas.
 - Agregar cálculo estimado de proximidad.
 - Guardar historial de detecciones.
-- Permitir editar balizas conocidas desde la interfaz.
 - Incorporar logs de debugging BLE.
 - Agregar tests instrumentados.
 - Soportar otros formatos además de iBeacon.
